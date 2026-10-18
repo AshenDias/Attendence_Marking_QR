@@ -1,0 +1,9 @@
+{
+  "name": "AcademiaQR - Attendance & Academic Management",
+  "description": "Production-ready university dynamic QR code attendance system with GPS geofencing, student scanning, lecturer live dashboards, and academic hierarchy management.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

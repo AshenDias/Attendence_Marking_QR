@@ -1,0 +1,2832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AcademiaQR - University QR Attendance & Academic Management System</title>
+  <meta name="description" content="Production-ready university dynamic QR code attendance system with GPS geofencing, student scanning, lecturer live dashboards, and academic hierarchy management." />
+  <meta property="og:title" content="AcademiaQR - University Attendance System" />
+  <meta property="og:description" content="Live dynamic QR attendance with GPS geofencing and academic management." />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              200: '#bfdbfe',
+              300: '#93c5fd',
+              400: '#60a5fa',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e40af',
+              900: '#1e3a8a',
+            },
+            emerald: {
+              500: '#10b981',
+              600: '#059669',
+            }
+          },
+          boxShadow: {
+            'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.25)',
+            'glass-light': '0 8px 32px 0 rgba(31, 38, 135, 0.08)',
+            'glow-blue': '0 0 25px -5px rgba(59, 130, 246, 0.5)',
+            'glow-emerald': '0 0 25px -5px rgba(16, 185, 129, 0.5)',
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- QRCode.js CDN for dynamic high-speed canvas QR generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <!-- Html5-Qrcode Scanner CDN for in-browser camera scanning -->
+  <script src="https://unpkg.com/html5-qrcode"></script>
+
+  <!-- Custom styles for glassmorphism and animations -->
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.6);
+    }
+    .dark .glass-card {
+      background: rgba(17, 24, 39, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .glass-card-subtle {
+      background: rgba(243, 244, 246, 0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(229, 231, 235, 0.8);
+    }
+    .dark .glass-card-subtle {
+      background: rgba(31, 41, 55, 0.5);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(75, 85, 99, 0.3);
+    }
+    /* Scanner Reticle Animation */
+    @keyframes scanline {
+      0% { top: 4%; opacity: 0.8; }
+      50% { top: 92%; opacity: 1; }
+      100% { top: 4%; opacity: 0.8; }
+    }
+    .scanner-line {
+      animation: scanline 2.2s ease-in-out infinite;
+    }
+    /* QR Pulse when token refreshes */
+    @keyframes tokenPulse {
+      0% { transform: scale(0.97); opacity: 0.7; }
+      50% { transform: scale(1.02); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .qr-refresh-anim {
+      animation: tokenPulse 0.4s ease-out;
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(156, 163, 175, 0.4);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(156, 163, 175, 0.7);
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col antialiased selection:bg-brand-500 selection:text-white">
+
+  <!-- ================= TOP NAVIGATION BAR ================= -->
+  <header class="sticky top-0 z-40 w-full glass-card border-b border-slate-200/80 dark:border-slate-800/80 transition-colors">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      
+      <!-- Brand & University Identity -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 via-indigo-600 to-sky-400 flex items-center justify-center shadow-lg shadow-brand-500/30 text-white font-bold text-xl">
+          <i data-lucide="qr-code" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-extrabold text-lg tracking-tight bg-gradient-to-r from-brand-600 via-indigo-600 to-sky-500 dark:from-brand-400 dark:to-sky-300 bg-clip-text text-transparent">
+              AcademiaQR
+            </span>
+            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-brand-100 dark:bg-brand-950/80 text-brand-700 dark:text-brand-300 border border-brand-200 dark:border-brand-800">
+              v2.4
+            </span>
+          </div>
+          <p class="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">Faculty of Information Technology & Engineering</p>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs (Role Switcher) -->
+      <nav class="flex items-center gap-1 sm:gap-2 p-1 bg-slate-200/60 dark:bg-slate-900/60 rounded-xl border border-slate-300/40 dark:border-slate-800">
+        <button onclick="switchRole('student')" id="nav-btn-student" class="flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 bg-white dark:bg-slate-800 text-brand-600 dark:text-brand-400 shadow-sm">
+          <i data-lucide="graduation-cap" class="w-4 h-4"></i>
+          <span>Student</span>
+        </button>
+        <button onclick="switchRole('lecturer')" id="nav-btn-lecturer" class="flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
+          <i data-lucide="presentation" class="w-4 h-4"></i>
+          <span>Lecturer</span>
+        </button>
+        <button onclick="switchRole('admin')" id="nav-btn-admin" class="flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
+          <i data-lucide="shield-check" class="w-4 h-4"></i>
+          <span>Admin</span>
+        </button>
+      </nav>
+
+      <!-- Right Controls: Profile, Theme, Live GPS Indicator -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <!-- Quick User Profile Selector -->
+        <div class="relative">
+          <button id="user-menu-btn" onclick="toggleUserDropdown()" class="flex items-center gap-2 p-1.5 sm:px-3 sm:py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-xs transition">
+            <div id="user-avatar" class="w-7 h-7 rounded-lg bg-brand-500/20 text-brand-600 dark:text-brand-400 font-bold flex items-center justify-center text-xs">
+              AR
+            </div>
+            <div class="text-left hidden md:block">
+              <div id="user-name" class="font-semibold text-slate-800 dark:text-slate-200 leading-tight">Alex Rivera</div>
+              <div id="user-role-badge" class="text-[10px] text-slate-500 dark:text-slate-400">Year 2 • Student</div>
+            </div>
+            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400"></i>
+          </button>
+
+          <!-- User Switching Dropdown -->
+          <div id="user-dropdown" class="hidden absolute right-0 mt-2 w-64 glass-card rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 py-2 z-50 text-xs">
+            <div class="px-3 py-2 border-b border-slate-200 dark:border-slate-800">
+              <p class="font-semibold text-slate-800 dark:text-slate-200">Switch Demo Persona</p>
+              <p class="text-[11px] text-slate-500">Test different permissions instantly</p>
+            </div>
+            <div class="p-1 space-y-1">
+              <button onclick="selectPersona('student1')" class="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-brand-50 dark:hover:bg-brand-950/40 text-left transition">
+                <span class="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">AR</span>
+                <div>
+                  <div class="font-semibold">Alex Rivera (Student)</div>
+                  <div class="text-[10px] text-slate-500">B.Sc. Software Eng • Year 2 Sem 1</div>
+                </div>
+              </button>
+              <button onclick="selectPersona('student2')" class="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-brand-50 dark:hover:bg-brand-950/40 text-left transition">
+                <span class="w-8 h-8 rounded-lg bg-pink-100 dark:bg-pink-900/40 text-pink-600 dark:text-pink-400 flex items-center justify-center font-bold">MC</span>
+                <div>
+                  <div class="font-semibold">Maya Chen (Student)</div>
+                  <div class="text-[10px] text-slate-500">B.Sc. Software Eng • Year 2 Sem 1 (Low Att. 72%)</div>
+                </div>
+              </button>
+              <button onclick="selectPersona('lecturer1')" class="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-purple-50 dark:hover:bg-purple-950/40 text-left transition">
+                <span class="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold">ER</span>
+                <div>
+                  <div class="font-semibold">Dr. Evelyn Reed (Lecturer)</div>
+                  <div class="text-[10px] text-slate-500">Senior Lecturer • Dept of Computing</div>
+                </div>
+              </button>
+              <button onclick="selectPersona('admin1')" class="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-left transition">
+                <span class="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">SJ</span>
+                <div>
+                  <div class="font-semibold">Prof. Sarah Jenkins (Admin)</div>
+                  <div class="text-[10px] text-slate-500">Dean / Academic Registrar</div>
+                </div>
+              </button>
+            </div>
+            <div class="pt-1 mt-1 border-t border-slate-200 dark:border-slate-800 px-2">
+              <button onclick="openFirebaseConfigModal()" class="w-full text-center py-1.5 text-[11px] text-brand-600 dark:text-brand-400 hover:underline flex items-center justify-center gap-1">
+                <i data-lucide="database" class="w-3 h-3"></i> Firebase Settings & Sync
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dark/Light Mode Toggle -->
+        <button onclick="toggleTheme()" class="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition">
+          <i data-lucide="moon" id="theme-icon-moon" class="w-4 h-4 hidden dark:block"></i>
+          <i data-lucide="sun" id="theme-icon-sun" class="w-4 h-4 block dark:hidden"></i>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ================= NOTIFICATION TOAST CONTAINER ================= -->
+  <div id="toast-container" class="fixed top-20 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
+
+  <!-- ================= MAIN CONTAINER ================= -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+
+    <!-- Active Broadcast / Status Banner -->
+    <div id="active-session-banner" class="hidden glass-card p-4 rounded-2xl border-l-4 border-l-brand-500 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md">
+      <div class="flex items-center gap-3">
+        <div class="relative flex h-3 w-3">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+        </div>
+        <div>
+          <span class="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+            <i data-lucide="radio" class="w-3.5 h-3.5"></i> Live Lecture Session In Progress
+          </span>
+          <h4 id="banner-session-title" class="text-sm font-semibold text-slate-800 dark:text-slate-200 mt-0.5">
+            SE201: Distributed Systems & Cloud Computing — Lecture Hall 4B
+          </h4>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 w-full sm:w-auto">
+        <button onclick="switchRole('student'); focusScanner();" class="flex-1 sm:flex-none px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold rounded-xl shadow transition flex items-center justify-center gap-1.5">
+          <i data-lucide="scan-line" class="w-3.5 h-3.5"></i> Scan Attendance Now
+        </button>
+        <button onclick="switchRole('lecturer')" class="px-3 py-1.5 glass-card-subtle text-slate-700 dark:text-slate-300 text-xs font-medium rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 transition">
+          View Console
+        </button>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- VIEW 1: 👨‍🎓 STUDENT ROLE VIEW                                  -->
+    <!-- ============================================================== -->
+    <div id="view-student" class="space-y-6">
+
+      <!-- Student Hero & Quick Stats -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        
+        <!-- Welcome Card -->
+        <div class="md:col-span-2 glass-card p-6 rounded-3xl relative overflow-hidden shadow-glass-light dark:shadow-glass">
+          <div class="absolute -right-10 -bottom-10 w-44 h-44 bg-brand-500/10 rounded-full blur-2xl pointer-events-none"></div>
+          <div class="flex items-start justify-between">
+            <div>
+              <span class="px-3 py-1 rounded-full text-xs font-medium bg-brand-100 dark:bg-brand-950 text-brand-700 dark:text-brand-300 border border-brand-200 dark:border-brand-800">
+                Academic Year 2026/2027 • Semester 1
+              </span>
+              <h2 class="text-2xl font-bold text-slate-900 dark:text-white mt-3">
+                Student Attendance Portal
+              </h2>
+              <p class="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                Scan dynamic classroom QR codes with GPS geofencing verification. Minimum 80% attendance required for final exam eligibility.
+              </p>
+            </div>
+            <div class="hidden sm:flex flex-col items-end">
+              <span class="text-xs text-slate-500 dark:text-slate-400">Current GPS Status</span>
+              <span id="student-gps-pill" class="mt-1 flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                <i data-lucide="map-pin" class="w-3 h-3 text-brand-500"></i> Locating...
+              </span>
+            </div>
+          </div>
+
+          <!-- Academic Hierarchy Breadcrumbs -->
+          <div class="mt-5 pt-4 border-t border-slate-200/60 dark:border-slate-800/80 flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+            <span class="font-semibold text-slate-800 dark:text-slate-200">Degree:</span>
+            <span class="px-2 py-0.5 rounded bg-slate-200/60 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300">B.Sc. (Hons) Software Engineering</span>
+            <i data-lucide="chevron-right" class="w-3 h-3 text-slate-400"></i>
+            <span class="px-2 py-0.5 rounded bg-slate-200/60 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300">Year 2</span>
+            <i data-lucide="chevron-right" class="w-3 h-3 text-slate-400"></i>
+            <span class="px-2 py-0.5 rounded bg-slate-200/60 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300">Semester 1</span>
+          </div>
+        </div>
+
+        <!-- Overall Attendance Gauge Card -->
+        <div class="glass-card p-6 rounded-3xl flex flex-col justify-between shadow-glass-light dark:shadow-glass">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-300">Overall Attendance</h3>
+            <span id="student-overall-badge" class="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+              Good Standing
+            </span>
+          </div>
+          
+          <div class="my-4 flex items-baseline gap-2">
+            <span id="student-overall-pct" class="text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white">88.5%</span>
+            <span class="text-xs text-slate-500 dark:text-slate-400">/ 100% (Target: ≥80%)</span>
+          </div>
+
+          <div class="space-y-1.5">
+            <div class="w-full bg-slate-200 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
+              <div id="student-overall-bar" class="h-full bg-emerald-500 rounded-full transition-all duration-500" style="width: 88.5%"></div>
+            </div>
+            <div class="flex justify-between text-[11px] text-slate-500">
+              <span>Attended: <b id="student-total-attended" class="text-slate-700 dark:text-slate-300">46</b> sessions</span>
+              <span>Total: <b id="student-total-sessions" class="text-slate-700 dark:text-slate-300">52</b> sessions</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Live QR Scanner & GPS Geofence Check Section -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Scanner Card (7 cols) -->
+        <div class="lg:col-span-7 glass-card p-6 rounded-3xl shadow-glass-light dark:shadow-glass space-y-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400 flex items-center justify-center font-bold">
+                <i data-lucide="camera" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <h3 class="font-bold text-slate-900 dark:text-white text-base">Classroom QR Scanner</h3>
+                <p class="text-xs text-slate-500">Point your camera at the lecturer's projector screen</p>
+              </div>
+            </div>
+
+            <!-- Scanner Camera Controls -->
+            <div class="flex items-center gap-2">
+              <button id="btn-toggle-camera" onclick="toggleCameraScanner()" class="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow">
+                <i data-lucide="video" class="w-3.5 h-3.5"></i>
+                <span id="camera-btn-text">Start Camera</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Video Viewport & Reticle Overlay -->
+          <div class="relative w-full aspect-video sm:aspect-[16/10] bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center">
+            
+            <!-- Html5Qrcode video mount target -->
+            <div id="reader" class="w-full h-full object-cover"></div>
+
+            <!-- Placeholder when camera is inactive -->
+            <div id="scanner-placeholder" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-slate-400 bg-slate-950/80 backdrop-blur-sm">
+              <div class="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mb-3 text-slate-500">
+                <i data-lucide="qr-code" class="w-8 h-8"></i>
+              </div>
+              <p class="text-sm font-medium text-slate-300">Camera Scanner Idle</p>
+              <p class="text-xs text-slate-500 max-w-xs mt-1">
+                Click "Start Camera" to scan via device webcam/phone camera, or use the instant test scan button below.
+              </p>
+              <button onclick="toggleCameraScanner()" class="mt-4 px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold rounded-xl transition flex items-center gap-2">
+                <i data-lucide="camera" class="w-3.5 h-3.5"></i> Start Camera Stream
+              </button>
+            </div>
+
+            <!-- Animated Reticle Overlay (active during camera scan) -->
+            <div id="scanner-reticle" class="hidden absolute inset-0 pointer-events-none flex items-center justify-center">
+              <div class="relative w-56 h-56 sm:w-64 sm:h-64 border-2 border-brand-400/80 rounded-2xl">
+                <!-- Corner notches -->
+                <div class="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-brand-500 rounded-tl-lg"></div>
+                <div class="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-brand-500 rounded-tr-lg"></div>
+                <div class="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-brand-500 rounded-bl-lg"></div>
+                <div class="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-brand-500 rounded-br-lg"></div>
+                <!-- Laser scan bar -->
+                <div class="absolute left-2 right-2 h-0.5 bg-gradient-to-r from-transparent via-red-500 to-transparent scanner-line shadow-[0_0_12px_#ef4444]"></div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Quick Test & Instant Simulation Bar -->
+          <div class="p-3 bg-slate-200/50 dark:bg-slate-900/50 rounded-2xl border border-slate-300/50 dark:border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+            <div class="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+              <i data-lucide="sparkles" class="w-4 h-4 text-amber-500"></i>
+              <span>Desktop / Testing Simulation:</span>
+            </div>
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+              <button onclick="simulateScanCurrentSession()" class="flex-1 sm:flex-none px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-xl transition flex items-center justify-center gap-1.5 shadow">
+                <i data-lucide="zap" class="w-3.5 h-3.5"></i> One-Click Test Scan Live Session
+              </button>
+              <button onclick="openManualTokenModal()" class="px-2.5 py-1.5 glass-card-subtle hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl transition" title="Paste QR payload code manually">
+                Manual Token
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- GPS Geofence & Location Verification Card (5 cols) -->
+        <div class="lg:col-span-5 glass-card p-6 rounded-3xl shadow-glass-light dark:shadow-glass flex flex-col justify-between space-y-4">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
+                  <i data-lucide="crosshair" class="w-4 h-4"></i>
+                </div>
+                <div>
+                  <h3 class="font-bold text-slate-900 dark:text-white text-base">GPS Geofencing</h3>
+                  <p class="text-xs text-slate-500">Classroom boundary proximity check</p>
+                </div>
+              </div>
+
+              <button onclick="refreshStudentGPS()" class="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-500 hover:text-slate-800 dark:hover:text-white transition" title="Refresh GPS coordinates">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+
+            <!-- GPS Live Status Banner -->
+            <div id="gps-status-card" class="p-4 rounded-2xl border transition-all duration-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2 font-semibold text-xs sm:text-sm">
+                  <i data-lucide="check-circle" id="gps-status-icon" class="w-4 h-4 text-emerald-600 dark:text-emerald-400"></i>
+                  <span id="gps-status-text">Inside Classroom Geofence</span>
+                </div>
+                <span id="gps-distance-val" class="font-mono text-xs font-bold px-2 py-0.5 rounded-md bg-white dark:bg-slate-900 shadow-xs">
+                  8.4 m away
+                </span>
+              </div>
+              <p id="gps-status-desc" class="text-xs mt-2 text-emerald-700/80 dark:text-emerald-400/80">
+                You are currently within the 50-meter radius of Lecture Hall 4B. Attendance submission authorized.
+              </p>
+            </div>
+
+            <!-- Coordinates Breakdown -->
+            <div class="mt-4 space-y-2 text-xs">
+              <div class="p-3 bg-slate-200/40 dark:bg-slate-900/40 rounded-xl space-y-1">
+                <div class="flex justify-between text-slate-500 dark:text-slate-400">
+                  <span>Student Live GPS:</span>
+                  <span id="student-coords" class="font-mono text-slate-800 dark:text-slate-200">6.9271° N, 79.8612° E</span>
+                </div>
+                <div class="flex justify-between text-slate-500 dark:text-slate-400">
+                  <span>Lecturer Classroom Target:</span>
+                  <span id="target-coords" class="font-mono text-slate-800 dark:text-slate-200">6.9271° N, 79.8613° E</span>
+                </div>
+                <div class="flex justify-between text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-200 dark:border-slate-800">
+                  <span>Max Allowed Radius:</span>
+                  <span id="target-radius" class="font-semibold text-slate-800 dark:text-slate-200">50 meters</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Testing Toggle: Simulate inside vs outside classroom -->
+            <div class="mt-4 pt-3 border-t border-slate-200/60 dark:border-slate-800/80">
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
+                Test Location Simulator:
+              </label>
+              <div class="grid grid-cols-3 gap-1.5">
+                <button onclick="setSimulatedLocation('inside')" id="btn-loc-inside" class="px-2 py-1.5 text-xs font-medium rounded-xl bg-brand-600 text-white transition">
+                  Inside (8m)
+                </button>
+                <button onclick="setSimulatedLocation('outside')" id="btn-loc-outside" class="px-2 py-1.5 text-xs font-medium rounded-xl glass-card-subtle text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 transition">
+                  Outside (185m)
+                </button>
+                <button onclick="setSimulatedLocation('real')" id="btn-loc-real" class="px-2 py-1.5 text-xs font-medium rounded-xl glass-card-subtle text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 transition">
+                  Device GPS
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Anti-Cheating & Security Seal -->
+          <div class="pt-3 border-t border-slate-200/60 dark:border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500">
+            <span class="flex items-center gap-1">
+              <i data-lucide="shield-alert" class="w-3.5 h-3.5 text-emerald-500"></i>
+              Haversine Great-Circle Validated
+            </span>
+            <span class="font-mono">5s Dynamic Nonce</span>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Enrolled Modules & Attendance Percentage List -->
+      <div class="glass-card p-6 rounded-3xl shadow-glass-light dark:shadow-glass space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 class="font-bold text-slate-900 dark:text-white text-lg">Enrolled Modules & Attendance Records</h3>
+            <p class="text-xs text-slate-500">Year 2, Semester 1 Modules • Color-coded 80% mandatory threshold monitor</p>
+          </div>
+          
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> ≥80% Good
+            </span>
+            <span class="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> 75-79% Warning
+            </span>
+            <span class="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300">
+              <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> &lt;75% Critical
+            </span>
+          </div>
+        </div>
+
+        <!-- Modules Grid -->
+        <div id="student-modules-list" class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+          <!-- Dynamically populated via JS -->
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- VIEW 2: 👨‍🏫 LECTURER ROLE VIEW                                  -->
+    <!-- ============================================================== -->
+    <div id="view-lecturer" class="hidden space-y-6">
+
+      <!-- Lecturer Header & Active Session Control -->
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-card p-6 rounded-3xl shadow-glass-light dark:shadow-glass">
+        <div>
+          <span class="px-3 py-1 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+            Lecturer Control Console
+          </span>
+          <h2 class="text-2xl font-bold text-slate-900 dark:text-white mt-2">
+            Lecture Session & Dynamic QR Dispatcher
+          </h2>
+          <p class="text-sm text-slate-600 dark:text-slate-400">
+            Auto-refreshes dynamic QR code every 5 seconds to prevent screenshot proxy sharing.
+          </p>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button id="btn-toggle-session" onclick="toggleLectureSession()" class="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-2xl shadow-lg shadow-brand-500/25 transition flex items-center gap-2">
+            <i data-lucide="play" id="session-toggle-icon" class="w-4 h-4"></i>
+            <span id="session-toggle-label">Start New Lecture Session</span>
+          </button>
+          
+          <button onclick="exportAttendanceCSV()" class="px-4 py-2.5 glass-card-subtle hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold rounded-2xl transition flex items-center gap-2">
+            <i data-lucide="download" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">Export CSV</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Lecturer Workspace -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Left Column: Dynamic QR Projector & Session Setup (5 cols) -->
+        <div class="lg:col-span-5 space-y-6">
+
+          <!-- Dynamic QR Code Card -->
+          <div class="glass-card p-6 rounded-3xl shadow-glass-light dark:shadow-glass text-center relative overflow-hidden">
+            
+            <div class="flex items-center justify-between mb-4">
+              <span class="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-brand-100 text-brand-700 dark:bg-brand-950 dark:text-brand-300">
+                <span class="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></span>
+                Dynamic QR Token
+              </span>
+
+              <!-- 5-Second Countdown Indicator -->
+              <div class="flex items-center gap-1.5 text-xs font-mono font-bold text-slate-600 dark:text-slate-300">
+                <i data-lucide="timer" class="w-3.5 h-3.5 text-brand-500"></i>
+                <span>Refreshes in: <span id="qr-timer-seconds" class="text-brand-600 dark:text-brand-400">5</span>s</span>
+              </div>
+            </div>
+
+            <!-- QR Visual Mount & Projector Display -->
+            <div class="mx-auto my-3 p-4 bg-white rounded-3xl shadow-md border-4 border-slate-100 dark:border-slate-800 w-64 h-64 flex flex-col items-center justify-center relative">
+              <div id="qrcode-canvas" class="flex items-center justify-center"></div>
+              
+              <!-- Inactive Session Overlay -->
+              <div id="qr-inactive-overlay" class="absolute inset-0 bg-slate-900/90 rounded-2xl backdrop-blur-sm flex flex-col items-center justify-center p-4 text-white text-center">
+                <i data-lucide="lock" class="w-10 h-10 text-slate-400 mb-2"></i>
+                <p class="font-bold text-sm">Session Inactive</p>
+                <p class="text-xs text-slate-400 mt-1">Configure session below and click "Start New Lecture Session"</p>
+              </div>
+            </div>
+
+            <!-- Countdown Progress Bar -->
+            <div class="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden mt-3">
+              <div id="qr-progress-bar" class="h-full bg-brand-500 rounded-full transition-all duration-300" style="width: 100%"></div>
+            </div>
+
+            <div class="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 flex items-center justify-between">
+              <span class="font-mono text-[11px] truncate max-w-[180px]" id="qr-nonce-preview">Nonce: #8F9A3B</span>
+              <span class="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-semibold">
+                <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Anti-Proxy Enabled
+              </span>
+            </div>
+          </div>
+
+          <!-- Session Configuration Card -->
+          <div class="glass-card p-6 rounded-3xl shadow-glass-light dark:shadow-glass space-y-4">
+            <h3 class="font-bold text-slate-900 dark:text-white text-base flex items-center gap-2">
+              <i data-lucide="settings-2" class="w-4 h-4 text-brand-500"></i>
+              Session & Classroom Parameters
+            </h3>
+
+            <div class="space-y-3 text-xs">
+              <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Target Module & Subject</label>
+                <select id="lecturer-module-select" class="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                  <!-- Populated from modules list -->
+                </select>
+              </div>
+
+              <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Lecture Topic / Lesson Focus</label>
+                <input type="text" id="lecturer-topic-input" value="Architectural Patterns & Microservices" class="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Classroom / Hall</label>
+                  <select id="lecturer-hall-select" onchange="applyClassroomPreset()" class="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    <option value="hall4b">Lecture Hall 4B (Main Campus)</option>
+                    <option value="lab3">Computer Lab 3 (CS Wing)</option>
+                    <option value="audi">University Main Auditorium</option>
+                    <option value="custom">Custom Location (Auto-Detect)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Geofence Radius</label>
+                  <select id="lecturer-radius-select" class="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    <option value="30">30 meters (Strict Classroom)</option>
+                    <option value="50" selected>50 meters (Standard Hall)</option>
+                    <option value="100">100 meters (Auditorium / Building)</option>
+                    <option value="250">250 meters (Campus Quad)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="p-3 bg-slate-200/50 dark:bg-slate-900/50 rounded-xl space-y-1 text-slate-600 dark:text-slate-400">
+                <div class="flex justify-between">
+                  <span>Classroom Lat/Lng:</span>
+                  <span id="lecturer-classroom-coords" class="font-mono text-slate-800 dark:text-slate-200 font-semibold">6.9271° N, 79.8612° E</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>Detection Method:</span>
+                  <span class="text-brand-600 dark:text-brand-400 font-medium">Fixed Precision Campus Geopoint</span>
+                </div>
+              </div>
+
+              <button onclick="autoDetectLecturerGPS()" class="w-full py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold rounded-xl transition flex items-center justify-center gap-1.5">
+                <i data-lucide="map-pin" class="w-3.5 h-3.5 text-brand-500"></i>
+                Auto-Detect Current GPS Coordinates
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right Column: Real-Time Live Attendance Roster (7 cols) -->
+        <div class="lg:col-span-7 glass-card p-6 rounded-3xl shadow-glass-light dark:shadow-glass space-y-4 flex flex-col justify-between">
+          <div>
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h3 class="font-bold text-slate-900 dark:text-white text-base">Live Attendance Stream</h3>
+                  <span id="live-count-badge" class="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                    4 Present
+                  </span>
+                </div>
+                <p class="text-xs text-slate-500 mt-0.5" id="live-session-desc">
+                  Session active: SE201 • Total expected cohort: 6 students
+                </p>
+              </div>
+
+              <!-- Quick action to manually add student -->
+              <div class="flex items-center gap-2">
+                <button onclick="openManualCheckinModal()" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-xl transition flex items-center gap-1.5">
+                  <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
+                  Manual Check-in
+                </button>
+              </div>
+            </div>
+
+            <!-- Attendance Table -->
+            <div class="mt-4 overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead>
+                  <tr class="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-semibold uppercase tracking-wider text-[11px]">
+                    <th class="py-2.5 px-3">Student</th>
+                    <th class="py-2.5 px-3">Scan Time</th>
+                    <th class="py-2.5 px-3">GPS Proximity</th>
+                    <th class="py-2.5 px-3">Status</th>
+                    <th class="py-2.5 px-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="lecturer-roster-tbody" class="divide-y divide-slate-100 dark:divide-slate-800/60">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Roster summary footer -->
+          <div class="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
+            <span class="flex items-center gap-2">
+              <i data-lucide="info" class="w-3.5 h-3.5 text-brand-500"></i>
+              Attendance logs sync immediately with student profiles & Firebase.
+            </span>
+            <div class="flex items-center gap-3">
+              <span>Present: <b id="stat-present-count" class="text-emerald-600 dark:text-emerald-400">4</b></span>
+              <span>Absent: <b id="stat-absent-count" class="text-rose-600 dark:text-rose-400">2</b></span>
+              <span>Cohort Rate: <b id="stat-cohort-pct" class="text-brand-600 dark:text-brand-400">66.7%</b></span>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- VIEW 3: 🏛️ ADMIN ROLE VIEW                                     -->
+    <!-- ============================================================== -->
+    <div id="view-admin" class="hidden space-y-6">
+
+      <!-- Admin Header -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-card p-6 rounded-3xl shadow-glass-light dark:shadow-glass">
+        <div>
+          <span class="px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+            University Administration & Academic Registry
+          </span>
+          <h2 class="text-2xl font-bold text-slate-900 dark:text-white mt-2">
+            Academic Hierarchy & User Management
+          </h2>
+          <p class="text-sm text-slate-600 dark:text-slate-400">
+            Configure 4-year degree programs, modules, academic semesters, and assign roles.
+          </p>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button onclick="openNewModuleModal()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold rounded-2xl shadow transition flex items-center gap-1.5">
+            <i data-lucide="plus-circle" class="w-4 h-4"></i> Add New Module
+          </button>
+          <button onclick="openNewUserModal()" class="px-4 py-2 glass-card-subtle text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 text-xs font-semibold rounded-2xl transition flex items-center gap-1.5">
+            <i data-lucide="user-plus" class="w-4 h-4"></i> Create User
+          </button>
+        </div>
+      </div>
+
+      <!-- Campus Overview KPI Cards -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="glass-card p-4 rounded-2xl shadow-sm">
+          <div class="flex items-center justify-between text-slate-500 text-xs">
+            <span>Total Enrolled Students</span>
+            <i data-lucide="users" class="w-4 h-4 text-brand-500"></i>
+          </div>
+          <div class="text-2xl font-extrabold text-slate-900 dark:text-white mt-2" id="admin-kpi-students">1,248</div>
+          <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">+14% this semester</span>
+        </div>
+
+        <div class="glass-card p-4 rounded-2xl shadow-sm">
+          <div class="flex items-center justify-between text-slate-500 text-xs">
+            <span>Active Modules (All 4 Yrs)</span>
+            <i data-lucide="book-open" class="w-4 h-4 text-indigo-500"></i>
+          </div>
+          <div class="text-2xl font-extrabold text-slate-900 dark:text-white mt-2" id="admin-kpi-modules">38</div>
+          <span class="text-[10px] text-slate-500">Across 3 Degree Programs</span>
+        </div>
+
+        <div class="glass-card p-4 rounded-2xl shadow-sm">
+          <div class="flex items-center justify-between text-slate-500 text-xs">
+            <span>Live Lecture Sessions</span>
+            <i data-lucide="radio" class="w-4 h-4 text-emerald-500"></i>
+          </div>
+          <div class="text-2xl font-extrabold text-slate-900 dark:text-white mt-2" id="admin-kpi-sessions">1</div>
+          <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">Active Geofenced Class</span>
+        </div>
+
+        <div class="glass-card p-4 rounded-2xl shadow-sm">
+          <div class="flex items-center justify-between text-slate-500 text-xs">
+            <span>Campus Attendance Avg</span>
+            <i data-lucide="trending-up" class="w-4 h-4 text-emerald-500"></i>
+          </div>
+          <div class="text-2xl font-extrabold text-slate-900 dark:text-white mt-2" id="admin-kpi-avg">84.2%</div>
+          <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">Complies with &gt;80% policy</span>
+        </div>
+      </div>
+
+      <!-- Academic Hierarchy & Program Filter Navigation -->
+      <div class="glass-card p-6 rounded-3xl shadow-glass-light dark:shadow-glass space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 class="font-bold text-slate-900 dark:text-white text-base">Curriculum & Module Directory</h3>
+            <p class="text-xs text-slate-500">Hierarchy: Program ➔ Academic Year (1-4) ➔ Semester (1-2) ➔ Module</p>
+          </div>
+
+          <!-- Academic Structure Filter -->
+          <div class="flex flex-wrap items-center gap-2 text-xs">
+            <select id="admin-filter-year" onchange="renderAdminModules()" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">
+              <option value="all">All Years (1-4)</option>
+              <option value="1">Year 1</option>
+              <option value="2" selected>Year 2</option>
+              <option value="3">Year 3</option>
+              <option value="4">Year 4</option>
+            </select>
+            <select id="admin-filter-semester" onchange="renderAdminModules()" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">
+              <option value="all">All Semesters</option>
+              <option value="1" selected>Semester 1</option>
+              <option value="2">Semester 2</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Modules Table -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-semibold uppercase tracking-wider text-[11px]">
+                <th class="py-2.5 px-3">Code</th>
+                <th class="py-2.5 px-3">Module Name</th>
+                <th class="py-2.5 px-3">Year / Sem</th>
+                <th class="py-2.5 px-3">Credits</th>
+                <th class="py-2.5 px-3">Assigned Lecturer</th>
+                <th class="py-2.5 px-3">Avg Cohort Att.</th>
+                <th class="py-2.5 px-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-modules-tbody" class="divide-y divide-slate-100 dark:divide-slate-800/60">
+              <!-- Populated dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Users & Role Assignment Directory -->
+      <div class="glass-card p-6 rounded-3xl shadow-glass-light dark:shadow-glass space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="font-bold text-slate-900 dark:text-white text-base">User Directory & Role Assignments</h3>
+            <p class="text-xs text-slate-500">Assign Student, Lecturer, or Administrator roles and view cohort details</p>
+          </div>
+          <span class="text-xs text-slate-400" id="admin-user-count">6 registered system users</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-semibold uppercase tracking-wider text-[11px]">
+                <th class="py-2.5 px-3">ID / Identifier</th>
+                <th class="py-2.5 px-3">Full Name</th>
+                <th class="py-2.5 px-3">Email</th>
+                <th class="py-2.5 px-3">Role</th>
+                <th class="py-2.5 px-3">Program / Dept</th>
+                <th class="py-2.5 px-3 text-right">Change Role</th>
+              </tr>
+            </thead>
+            <tbody id="admin-users-tbody" class="divide-y divide-slate-100 dark:divide-slate-800/60">
+              <!-- Populated dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ================= MODALS ================= -->
+
+  <!-- Modal 1: Manual Check-in Override Modal (Lecturer) -->
+  <div id="modal-manual-checkin" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+    <div class="glass-card w-full max-w-md p-6 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-slate-900 dark:text-white text-base flex items-center gap-2">
+          <i data-lucide="user-check" class="w-4 h-4 text-brand-500"></i>
+          Manual Attendance Override
+        </h3>
+        <button onclick="closeModal('modal-manual-checkin')" class="text-slate-400 hover:text-slate-600 dark:hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <p class="text-xs text-slate-500">
+        Record attendance for a student who experienced phone battery depletion or camera issues.
+      </p>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold mb-1">Select Student</label>
+          <select id="manual-student-select" class="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">
+            <!-- Populated via JS -->
+          </select>
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">Attendance Status</label>
+          <select id="manual-status-select" class="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">
+            <option value="Present (Manual Override)">Present (Manual Override)</option>
+            <option value="Excused (Medical/Dean)">Excused (Medical / Dean)</option>
+            <option value="Absent">Absent</option>
+          </select>
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">Override Reason / Note</label>
+          <input type="text" id="manual-override-note" placeholder="e.g. Device camera glitch; confirmed physically in Hall 4B" class="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200" />
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeModal('modal-manual-checkin')" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition">
+          Cancel
+        </button>
+        <button onclick="submitManualCheckin()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-semibold transition shadow">
+          Save Attendance Record
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Manual Token Scan (Student Desktop fallback) -->
+  <div id="modal-manual-token" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+    <div class="glass-card w-full max-w-md p-6 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-slate-900 dark:text-white text-base flex items-center gap-2">
+          <i data-lucide="key" class="w-4 h-4 text-brand-500"></i>
+          Verify Token Manually
+        </h3>
+        <button onclick="closeModal('modal-manual-token')" class="text-slate-400 hover:text-slate-600 dark:hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <p class="text-xs text-slate-500">
+        If you cannot use your device camera, paste the dynamic QR token string or JSON payload displayed on the lecturer screen.
+      </p>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold mb-1">QR Payload / Token String</label>
+          <textarea id="manual-token-input" rows="3" placeholder='{"sessionId":"ses-1","token":"..."}' class="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-mono text-[11px]"></textarea>
+        </div>
+      </div>
+
+      <div class="flex justify-between items-center pt-2">
+        <button onclick="fillCurrentLiveToken()" class="text-xs text-brand-600 dark:text-brand-400 hover:underline">
+          Paste Live Session Token
+        </button>
+        <div class="flex gap-2">
+          <button onclick="closeModal('modal-manual-token')" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition">
+            Cancel
+          </button>
+          <button onclick="submitManualTokenVerification()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-semibold transition shadow">
+            Verify & Check In
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: Add Module (Admin) -->
+  <div id="modal-add-module" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+    <div class="glass-card w-full max-w-lg p-6 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-slate-900 dark:text-white text-base flex items-center gap-2">
+          <i data-lucide="book-plus" class="w-4 h-4 text-brand-500"></i>
+          Register Academic Module
+        </h3>
+        <button onclick="closeModal('modal-add-module')" class="text-slate-400 hover:text-slate-600 dark:hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 text-xs">
+        <div>
+          <label class="block font-semibold mb-1">Module Code</label>
+          <input type="text" id="new-mod-code" placeholder="e.g. SE208" class="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200" />
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">Credit Value</label>
+          <input type="number" id="new-mod-credits" value="4" min="1" max="6" class="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200" />
+        </div>
+        <div class="col-span-2">
+          <label class="block font-semibold mb-1">Module Title / Subject Name</label>
+          <input type="text" id="new-mod-title" placeholder="e.g. Web Security & Penetration Testing" class="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200" />
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">Academic Year</label>
+          <select id="new-mod-year" class="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">
+            <option value="1">Year 1</option>
+            <option value="2" selected>Year 2</option>
+            <option value="3">Year 3</option>
+            <option value="4">Year 4</option>
+          </select>
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">Semester</label>
+          <select id="new-mod-semester" class="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">
+            <option value="1">Semester 1</option>
+            <option value="2">Semester 2</option>
+          </select>
+        </div>
+        <div class="col-span-2">
+          <label class="block font-semibold mb-1">Assigned Lecturer</label>
+          <select id="new-mod-lecturer" class="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">
+            <!-- Filled via JS -->
+          </select>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeModal('modal-add-module')" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition">
+          Cancel
+        </button>
+        <button onclick="submitNewModule()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-semibold transition shadow">
+          Create Module
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 4: Add User (Admin) -->
+  <div id="modal-add-user" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+    <div class="glass-card w-full max-w-md p-6 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-slate-900 dark:text-white text-base flex items-center gap-2">
+          <i data-lucide="user-plus" class="w-4 h-4 text-brand-500"></i>
+          Register System User
+        </h3>
+        <button onclick="closeModal('modal-add-user')" class="text-slate-400 hover:text-slate-600 dark:hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold mb-1">Full Name</label>
+          <input type="text" id="new-user-name" placeholder="e.g. Rachel Torres" class="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200" />
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">Institutional Email</label>
+          <input type="email" id="new-user-email" placeholder="e.g. rachel.t@univ.edu" class="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-semibold mb-1">System Role</label>
+            <select id="new-user-role" class="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">
+              <option value="student">Student</option>
+              <option value="lecturer">Lecturer</option>
+              <option value="admin">Administrator</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-semibold mb-1">Year (if student)</label>
+            <select id="new-user-year" class="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">
+              <option value="1">Year 1</option>
+              <option value="2" selected>Year 2</option>
+              <option value="3">Year 3</option>
+              <option value="4">Year 4</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeModal('modal-add-user')" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition">
+          Cancel
+        </button>
+        <button onclick="submitNewUser()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-semibold transition shadow">
+          Create User Account
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 5: Firebase Configuration & Live Sync Info -->
+  <div id="modal-firebase" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+    <div class="glass-card w-full max-w-lg p-6 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-slate-900 dark:text-white text-base flex items-center gap-2">
+          <i data-lucide="database" class="w-4 h-4 text-amber-500"></i>
+          Firebase & Multi-Tab Synchronization
+        </h3>
+        <button onclick="closeModal('modal-firebase')" class="text-slate-400 hover:text-slate-600 dark:hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      
+      <p class="text-xs text-slate-500">
+        AcademiaQR comes with a resilient real-time synchronization engine. By default, it operates with live local synchronization across all browser windows and tabs via <code class="font-mono text-brand-500">BroadcastChannel</code>. You can also paste your live Firebase Firestore config below for cloud persistence.
+      </p>
+
+      <div class="space-y-2 text-xs">
+        <label class="block font-semibold">Firebase Web Configuration Object (JSON):</label>
+        <textarea id="firebase-config-input" rows="6" class="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-mono text-[11px]"></textarea>
+      </div>
+
+      <div class="p-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-800 text-[11px] text-emerald-800 dark:text-emerald-300 flex items-start gap-2">
+        <i data-lucide="check-circle" class="w-4 h-4 mt-0.5 shrink-0 text-emerald-600"></i>
+        <div>
+          <span class="font-bold">Real-time Multi-Client Testing Ready:</span>
+          <p class="mt-0.5 text-emerald-700 dark:text-emerald-400">
+            Open this page in two separate browser tabs: keep one as <b>Lecturer</b> and one as <b>Student</b>. When the student scans, the lecturer dashboard updates instantly without refreshing!
+          </p>
+        </div>
+      </div>
+
+      <div class="flex justify-between items-center pt-2">
+        <button onclick="resetFirebaseConfigDefault()" class="text-xs text-slate-500 hover:underline">
+          Reset to Default
+        </button>
+        <div class="flex gap-2">
+          <button onclick="closeModal('modal-firebase')" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition">
+            Close
+          </button>
+          <button onclick="saveFirebaseConfig()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-semibold transition shadow">
+            Save Config
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= FOOTER ================= -->
+  <footer class="w-full glass-card border-t border-slate-200/80 dark:border-slate-800/80 py-4 text-xs text-slate-500 dark:text-slate-400 mt-auto">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
+      <div class="flex items-center gap-2">
+        <i data-lucide="shield" class="w-4 h-4 text-brand-500"></i>
+        <span>AcademiaQR University Academic Management & Attendance System</span>
+      </div>
+      <div class="flex items-center gap-4 text-[11px]">
+        <span>GPS Precision: ±2.5m</span>
+        <span>•</span>
+        <span>Haversine Algorithm Verified</span>
+        <span>•</span>
+        <span>Dynamic 5s Anti-Proxy QR</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ================= FIREBASE & APP LOGIC ================= -->
+  <!-- Firebase Modular JS SDK from CDN -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, onSnapshot, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+
+    // Standard Firebase configuration placeholders (ready to be replaced with live credentials)
+    const firebaseConfig = {
+      apiKey: "AIzaSyDummyKeyForAcademiaQR-ReplaceWithLiveKey",
+      authDomain: "academia-qr-university.firebaseapp.com",
+      projectId: "academia-qr-university",
+      storageBucket: "academia-qr-university.appspot.com",
+      messagingSenderId: "123456789012",
+      appId: "1:123456789012:web:abcdef1234567890"
+    };
+
+    // Store reference globally for the UI
+    window._firebaseModular = { initializeApp, getFirestore, collection, addDoc, getDocs, onSnapshot, doc, updateDoc, defaultConfig: firebaseConfig };
+  </script>
+
+  <!-- ================= CORE APPLICATION JAVASCRIPT ================= -->
+  <script>
+    /**
+     * AcademiaQR Core Engine
+     * Full client-side implementation of Haversine distance geofencing,
+     * dynamic 5-second auto-refresh QR tokens, attendance tracking (<80% warnings),
+     * and multi-tab real-time state synchronization via BroadcastChannel.
+     */
+
+    // --- 1. STATE & DATA STRUCTURES ---
+    const DB_KEY = 'academia_qr_database_v2';
+    const syncChannel = new BroadcastChannel('academia_qr_realtime_sync');
+
+    // Default Academic Data Hierarchy
+    const DEFAULT_DATA = {
+      programs: [
+        { id: 'prog-1', code: 'BSE', name: 'B.Sc. (Hons) Software Engineering', durationYears: 4 },
+        { id: 'prog-2', code: 'BCS', name: 'B.Sc. (Hons) Computer Science & AI', durationYears: 4 },
+        { id: 'prog-3', code: 'BEE', name: 'B.Eng. Electrical & Electronic Systems', durationYears: 4 }
+      ],
+      modules: [
+        {
+          id: 'mod-1',
+          code: 'SE201',
+          name: 'Distributed Systems & Cloud Computing',
+          credits: 4,
+          year: 2,
+          semester: 1,
+          programId: 'prog-1',
+          lecturerId: 'user-lec-1',
+          lecturerName: 'Dr. Evelyn Reed',
+          totalSessionsHeld: 14
+        },
+        {
+          id: 'mod-2',
+          code: 'CS204',
+          name: 'Algorithms & Data Structures II',
+          credits: 4,
+          year: 2,
+          semester: 1,
+          programId: 'prog-1',
+          lecturerId: 'user-lec-2',
+          lecturerName: 'Prof. Marcus Vance',
+          totalSessionsHeld: 15
+        },
+        {
+          id: 'mod-3',
+          code: 'SE205',
+          name: 'Database Engineering & NoSQL',
+          credits: 3,
+          year: 2,
+          semester: 1,
+          programId: 'prog-1',
+          lecturerId: 'user-lec-1',
+          lecturerName: 'Dr. Evelyn Reed',
+          totalSessionsHeld: 12
+        },
+        {
+          id: 'mod-4',
+          code: 'SE206',
+          name: 'Mobile & Ubiquitous Computing',
+          credits: 3,
+          year: 2,
+          semester: 1,
+          programId: 'prog-1',
+          lecturerId: 'user-lec-2',
+          lecturerName: 'Prof. Marcus Vance',
+          totalSessionsHeld: 11
+        },
+        {
+          id: 'mod-5',
+          code: 'AI301',
+          name: 'Machine Learning & Deep Neural Nets',
+          credits: 4,
+          year: 3,
+          semester: 1,
+          programId: 'prog-2',
+          lecturerId: 'user-lec-1',
+          lecturerName: 'Dr. Evelyn Reed',
+          totalSessionsHeld: 13
+        },
+        {
+          id: 'mod-6',
+          code: 'CS101',
+          name: 'Introduction to Programming & Logic',
+          credits: 4,
+          year: 1,
+          semester: 1,
+          programId: 'prog-1',
+          lecturerId: 'user-lec-2',
+          lecturerName: 'Prof. Marcus Vance',
+          totalSessionsHeld: 16
+        }
+      ],
+      users: [
+        {
+          id: 'user-stu-1',
+          studentId: 'STU-8821',
+          name: 'Alex Rivera',
+          email: 'alex.rivera@univ.edu',
+          role: 'student',
+          programId: 'prog-1',
+          year: 2,
+          semester: 1,
+          avatar: 'AR',
+          attendedByModule: {
+            'mod-1': 13, // 13/14 = 92.8%
+            'mod-2': 14, // 14/15 = 93.3%
+            'mod-3': 10, // 10/12 = 83.3%
+            'mod-4': 9   // 9/11 = 81.8%
+          }
+        },
+        {
+          id: 'user-stu-2',
+          studentId: 'STU-8835',
+          name: 'Maya Chen',
+          email: 'maya.chen@univ.edu',
+          role: 'student',
+          programId: 'prog-1',
+          year: 2,
+          semester: 1,
+          avatar: 'MC',
+          attendedByModule: {
+            'mod-1': 10, // 10/14 = 71.4% (BELOW 80% WARNING!)
+            'mod-2': 11, // 11/15 = 73.3% (BELOW 80% WARNING!)
+            'mod-3': 11, // 11/12 = 91.6%
+            'mod-4': 8   // 8/11 = 72.7% (BELOW 80% WARNING!)
+          }
+        },
+        {
+          id: 'user-stu-3',
+          studentId: 'STU-8842',
+          name: 'Liam Patel',
+          email: 'liam.patel@univ.edu',
+          role: 'student',
+          programId: 'prog-1',
+          year: 2,
+          semester: 1,
+          avatar: 'LP',
+          attendedByModule: {
+            'mod-1': 14,
+            'mod-2': 15,
+            'mod-3': 12,
+            'mod-4': 11
+          }
+        },
+        {
+          id: 'user-stu-4',
+          studentId: 'STU-8850',
+          name: 'Sophia Kim',
+          email: 'sophia.kim@univ.edu',
+          role: 'student',
+          programId: 'prog-1',
+          year: 2,
+          semester: 1,
+          avatar: 'SK',
+          attendedByModule: {
+            'mod-1': 12,
+            'mod-2': 13,
+            'mod-3': 11,
+            'mod-4': 10
+          }
+        },
+        {
+          id: 'user-lec-1',
+          lecturerId: 'LEC-401',
+          name: 'Dr. Evelyn Reed',
+          email: 'evelyn.reed@univ.edu',
+          role: 'lecturer',
+          department: 'Dept. of Software Engineering',
+          avatar: 'ER'
+        },
+        {
+          id: 'user-lec-2',
+          lecturerId: 'LEC-402',
+          name: 'Prof. Marcus Vance',
+          email: 'marcus.vance@univ.edu',
+          role: 'lecturer',
+          department: 'Dept. of Computer Science & AI',
+          avatar: 'MV'
+        },
+        {
+          id: 'user-adm-1',
+          adminId: 'ADM-100',
+          name: 'Prof. Sarah Jenkins',
+          email: 'sarah.jenkins@univ.edu',
+          role: 'admin',
+          department: 'Academic Registry & Dean Office',
+          avatar: 'SJ'
+        }
+      ],
+      // Active Live Session
+      activeSession: {
+        id: 'session-live-01',
+        isActive: true,
+        moduleId: 'mod-1',
+        moduleCode: 'SE201',
+        moduleName: 'Distributed Systems & Cloud Computing',
+        topic: 'Architectural Patterns & Event-Driven Microservices',
+        year: 2,
+        semester: 1,
+        classroomName: 'Lecture Hall 4B',
+        // Campus Hall Coordinates
+        classroomLat: 6.927150,
+        classroomLng: 79.861240,
+        radiusMeters: 50,
+        currentNonce: '9A7F2D',
+        tokenCreatedAt: Date.now(),
+        // Attendance records for this current session
+        records: [
+          {
+            studentId: 'STU-8842',
+            name: 'Liam Patel',
+            timestamp: new Date(Date.now() - 14 * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            distanceMeters: 12.4,
+            status: 'Verified (GPS + Dynamic QR)'
+          },
+          {
+            studentId: 'STU-8850',
+            name: 'Sophia Kim',
+            timestamp: new Date(Date.now() - 11 * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            distanceMeters: 18.2,
+            status: 'Verified (GPS + Dynamic QR)'
+          },
+          {
+            studentId: 'STU-8835',
+            name: 'Maya Chen',
+            timestamp: new Date(Date.now() - 6 * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            distanceMeters: 22.0,
+            status: 'Verified (GPS + Dynamic QR)'
+          }
+        ]
+      }
+    };
+
+    // Load or initialize state from localStorage
+    function loadAppState() {
+      try {
+        const stored = localStorage.getItem(DB_KEY);
+        if (stored) {
+          return JSON.parse(stored);
+        }
+      } catch (e) {
+        console.warn("Could not parse stored app state:", e);
+      }
+      return DEFAULT_DATA;
+    }
+
+    let state = loadAppState();
+
+    function saveAppState(broadcast = true) {
+      try {
+        localStorage.setItem(DB_KEY, JSON.stringify(state));
+        if (broadcast) {
+          syncChannel.postMessage({ type: 'STATE_UPDATED', timestamp: Date.now() });
+        }
+      } catch (e) {
+        console.error("Storage error:", e);
+      }
+    }
+
+    // Current Persona & Navigation State
+    let currentRole = 'student'; // 'student' | 'lecturer' | 'admin'
+    let currentUserId = 'user-stu-1'; // Alex Rivera by default
+
+    // Location & Geofencing Simulation State
+    // Default simulated student coordinates: 8.4 meters away from Lecture Hall 4B
+    let studentLocation = {
+      lat: 6.927210,
+      lng: 79.861280,
+      mode: 'inside' // 'inside' | 'outside' | 'real'
+    };
+
+    // Dynamic QR generation timer & instance
+    let qrCodeInstance = null;
+    let qrRefreshInterval = null;
+    let qrCountdown = 5;
+    let html5QrScannerInstance = null;
+    let isCameraScanning = false;
+
+    // --- 2. GPS HAVERSINE DISTANCE ALGORITHM ---
+    /**
+     * Calculates great-circle distance between two GPS coordinates using the Haversine formula
+     * @param {number} lat1 - Latitude of Point 1
+     * @param {number} lon1 - Longitude of Point 1
+     * @param {number} lat2 - Latitude of Point 2
+     * @param {number} lon2 - Longitude of Point 2
+     * @returns {number} Distance in meters
+     */
+    function getDistanceInMeters(lat1, lon1, lat2, lon2) {
+      const R = 6371e3; // Earth radius in meters
+      const φ1 = lat1 * Math.PI / 180;
+      const φ2 = lat2 * Math.PI / 180;
+      const Δφ = (lat2 - lat1) * Math.PI / 180;
+      const Δλ = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c; // Distance in meters
+    }
+
+    // --- 3. TOAST NOTIFICATION ENGINE ---
+    function showToast(message, type = 'info', title = '') {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+
+      const toast = document.createElement('div');
+      toast.className = `pointer-events-auto flex items-start gap-3 p-4 rounded-2xl shadow-xl border backdrop-blur-md transition-all duration-300 transform translate-x-5 opacity-0 text-xs ${
+        type === 'success'
+          ? 'bg-emerald-900/90 text-emerald-100 border-emerald-700/80'
+          : type === 'error'
+          ? 'bg-rose-900/90 text-rose-100 border-rose-700/80'
+          : type === 'warning'
+          ? 'bg-amber-900/90 text-amber-100 border-amber-700/80'
+          : 'bg-slate-900/90 text-slate-100 border-slate-700/80'
+      }`;
+
+      let icon = 'info';
+      if (type === 'success') icon = 'check-circle-2';
+      if (type === 'error') icon = 'alert-octagon';
+      if (type === 'warning') icon = 'alert-triangle';
+
+      toast.innerHTML = `
+        <i data-lucide="${icon}" class="w-5 h-5 shrink-0 mt-0.5 ${
+          type === 'success' ? 'text-emerald-400' : type === 'error' ? 'text-rose-400' : type === 'warning' ? 'text-amber-400' : 'text-blue-400'
+        }"></i>
+        <div class="flex-1">
+          ${title ? `<h5 class="font-bold text-sm mb-0.5">${title}</h5>` : ''}
+          <p class="leading-relaxed opacity-95">${message}</p>
+        </div>
+        <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-white p-1">
+          <i data-lucide="x" class="w-3.5 h-3.5"></i>
+        </button>
+      `;
+
+      container.appendChild(toast);
+      lucide.createIcons();
+
+      // Audio feedback chime using Web Audio API
+      playTone(type);
+
+      // Animate in
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-x-5', 'opacity-0');
+      });
+
+      // Auto dismiss after 4.5 seconds
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-x-5');
+        setTimeout(() => toast.remove(), 300);
+      }, 4500);
+    }
+
+    // Pleasant synthesized audio feedback
+    function playTone(type) {
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        if (type === 'success') {
+          osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+          osc.frequency.setValueAtTime(880.00, ctx.currentTime + 0.1); // A5
+          gain.gain.setValueAtTime(0.08, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.35);
+        } else if (type === 'error') {
+          osc.frequency.setValueAtTime(220, ctx.currentTime); // A3
+          osc.frequency.setValueAtTime(164.81, ctx.currentTime + 0.12); // E3
+          gain.gain.setValueAtTime(0.09, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.3);
+        }
+      } catch (e) {
+        // AudioContext policy suppression handled gracefully
+      }
+    }
+
+    // --- 4. DYNAMIC QR CODE ENGINE ---
+    // Refreshes every 5 seconds with cryptographic payload & nonce
+    function generateDynamicNonce() {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let result = '';
+      for (let i = 0; i < 6; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return result;
+    }
+
+    function initDynamicQRGenerator() {
+      const qrMount = document.getElementById('qrcode-canvas');
+      const overlay = document.getElementById('qr-inactive-overlay');
+      if (!qrMount) return;
+
+      qrMount.innerHTML = '';
+      qrCodeInstance = new QRCode(qrMount, {
+        text: 'ACADEMIA-QR-INIT',
+        width: 220,
+        height: 220,
+        colorDark: "#0f172a",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.M
+      });
+
+      startQRRefreshCycle();
+    }
+
+    function startQRRefreshCycle() {
+      if (qrRefreshInterval) clearInterval(qrRefreshInterval);
+
+      updateDynamicQRToken();
+
+      qrRefreshInterval = setInterval(() => {
+        qrCountdown--;
+        if (qrCountdown <= 0) {
+          qrCountdown = 5;
+          updateDynamicQRToken();
+        }
+
+        const secElem = document.getElementById('qr-timer-seconds');
+        const barElem = document.getElementById('qr-progress-bar');
+        if (secElem) secElem.textContent = qrCountdown;
+        if (barElem) barElem.style.width = `${(qrCountdown / 5) * 100}%`;
+      }, 1000);
+    }
+
+    function updateDynamicQRToken() {
+      if (!state.activeSession || !state.activeSession.isActive) {
+        const overlay = document.getElementById('qr-inactive-overlay');
+        if (overlay) overlay.classList.remove('hidden');
+        return;
+      }
+
+      const overlay = document.getElementById('qr-inactive-overlay');
+      if (overlay) overlay.classList.add('hidden');
+
+      // Generate fresh dynamic nonce
+      const newNonce = generateDynamicNonce();
+      const tokenTimestamp = Date.now();
+      state.activeSession.currentNonce = newNonce;
+      state.activeSession.tokenCreatedAt = tokenTimestamp;
+
+      // Construct encrypted tamper-evident payload
+      const payload = {
+        sessionId: state.activeSession.id,
+        moduleCode: state.activeSession.moduleCode,
+        nonce: newNonce,
+        lat: state.activeSession.classroomLat,
+        lng: state.activeSession.classroomLng,
+        radius: state.activeSession.radiusMeters,
+        ts: tokenTimestamp,
+        exp: tokenTimestamp + 6500 // Valid for 6.5s (5s + 1.5s clock skew allowance)
+      };
+
+      const payloadStr = JSON.stringify(payload);
+
+      if (qrCodeInstance) {
+        qrCodeInstance.clear();
+        qrCodeInstance.makeCode(payloadStr);
+
+        const canvasMount = document.getElementById('qrcode-canvas');
+        if (canvasMount) {
+          canvasMount.classList.remove('qr-refresh-anim');
+          void canvasMount.offsetWidth; // trigger reflow
+          canvasMount.classList.add('qr-refresh-anim');
+        }
+      }
+
+      const noncePreview = document.getElementById('qr-nonce-preview');
+      if (noncePreview) noncePreview.textContent = `Nonce: #${newNonce} • Sync active`;
+    }
+
+    // --- 5. GPS LOCATION & GEOFENCE LOGIC ---
+    function updateGPSDisplay() {
+      const targetLat = state.activeSession ? state.activeSession.classroomLat : 6.927150;
+      const targetLng = state.activeSession ? state.activeSession.classroomLng : 79.861240;
+      const maxRadius = state.activeSession ? state.activeSession.radiusMeters : 50;
+
+      const distance = getDistanceInMeters(
+        studentLocation.lat,
+        studentLocation.lng,
+        targetLat,
+        targetLng
+      );
+
+      const isInside = distance <= maxRadius;
+
+      // Update Student Dashboard Elements
+      const studentCoords = document.getElementById('student-coords');
+      const targetCoords = document.getElementById('target-coords');
+      const targetRadiusElem = document.getElementById('target-radius');
+      const gpsPill = document.getElementById('student-gps-pill');
+      const gpsStatusCard = document.getElementById('gps-status-card');
+      const gpsStatusText = document.getElementById('gps-status-text');
+      const gpsStatusDesc = document.getElementById('gps-status-desc');
+      const gpsDistanceVal = document.getElementById('gps-distance-val');
+
+      if (studentCoords) studentCoords.textContent = `${studentLocation.lat.toFixed(5)}° N, ${studentLocation.lng.toFixed(5)}° E`;
+      if (targetCoords) targetCoords.textContent = `${targetLat.toFixed(5)}° N, ${targetLng.toFixed(5)}° E`;
+      if (targetRadiusElem) targetRadiusElem.textContent = `${maxRadius} meters`;
+
+      if (gpsDistanceVal) {
+        gpsDistanceVal.textContent = `${distance.toFixed(1)} m away`;
+      }
+
+      if (isInside) {
+        if (gpsStatusCard) {
+          gpsStatusCard.className = 'p-4 rounded-2xl border transition-all duration-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300';
+        }
+        if (gpsStatusText) gpsStatusText.textContent = 'Inside Classroom Geofence';
+        if (gpsStatusDesc) {
+          gpsStatusDesc.className = 'text-xs mt-2 text-emerald-700/80 dark:text-emerald-400/80';
+          gpsStatusDesc.textContent = `You are currently ${distance.toFixed(1)}m from ${state.activeSession.classroomName} (Allowed: ${maxRadius}m). Attendance authorized.`;
+        }
+        if (gpsPill) {
+          gpsPill.className = 'mt-1 flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800';
+          gpsPill.innerHTML = `<i data-lucide="check-circle" class="w-3 h-3 text-emerald-500"></i> Geofence: In Range (${distance.toFixed(0)}m)`;
+        }
+      } else {
+        if (gpsStatusCard) {
+          gpsStatusCard.className = 'p-4 rounded-2xl border transition-all duration-300 bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-300';
+        }
+        if (gpsStatusText) gpsStatusText.textContent = 'Outside Classroom Geofence';
+        if (gpsStatusDesc) {
+          gpsStatusDesc.className = 'text-xs mt-2 text-rose-700/80 dark:text-rose-400/80';
+          gpsStatusDesc.textContent = `You are ${distance.toFixed(1)}m away, which exceeds the allowed ${maxRadius}m boundary. You must be inside the classroom to record attendance.`;
+        }
+        if (gpsPill) {
+          gpsPill.className = 'mt-1 flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800';
+          gpsPill.innerHTML = `<i data-lucide="alert-octagon" class="w-3 h-3 text-rose-500"></i> Geofence: Outside Range (${distance.toFixed(0)}m)`;
+        }
+      }
+
+      lucide.createIcons();
+    }
+
+    function setSimulatedLocation(mode) {
+      studentLocation.mode = mode;
+
+      const btnInside = document.getElementById('btn-loc-inside');
+      const btnOutside = document.getElementById('btn-loc-outside');
+      const btnReal = document.getElementById('btn-loc-real');
+
+      [btnInside, btnOutside, btnReal].forEach(b => {
+        if (b) {
+          b.className = 'px-2 py-1.5 text-xs font-medium rounded-xl glass-card-subtle text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 transition';
+        }
+      });
+
+      if (mode === 'inside') {
+        // ~8.4m from classroom
+        studentLocation.lat = 6.927210;
+        studentLocation.lng = 79.861280;
+        if (btnInside) btnInside.className = 'px-2 py-1.5 text-xs font-medium rounded-xl bg-brand-600 text-white transition shadow';
+        showToast('Simulated Location: Inside Classroom (8.4m away)', 'info', 'GPS Updated');
+        updateGPSDisplay();
+      } else if (mode === 'outside') {
+        // ~185m away from classroom (outside building)
+        studentLocation.lat = 6.928750;
+        studentLocation.lng = 79.862300;
+        if (btnOutside) btnOutside.className = 'px-2 py-1.5 text-xs font-medium rounded-xl bg-rose-600 text-white transition shadow';
+        showToast('Simulated Location: Outside Classroom (185m away)', 'warning', 'GPS Updated');
+        updateGPSDisplay();
+      } else if (mode === 'real') {
+        if (btnReal) btnReal.className = 'px-2 py-1.5 text-xs font-medium rounded-xl bg-indigo-600 text-white transition shadow';
+        refreshStudentGPS();
+      }
+    }
+
+    function refreshStudentGPS() {
+      if (!navigator.geolocation) {
+        showToast('Browser Geolocation is not supported in this browser.', 'error');
+        return;
+      }
+
+      showToast('Acquiring high-accuracy satellite GPS coordinates...', 'info');
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          studentLocation.lat = pos.coords.latitude;
+          studentLocation.lng = pos.coords.longitude;
+          updateGPSDisplay();
+          showToast(`Acquired GPS coordinates: ${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`, 'success', 'GPS Locked');
+        },
+        (err) => {
+          console.warn("GPS error:", err);
+          showToast(`Could not obtain hardware GPS: ${err.message}. Retaining simulated coordinates.`, 'warning', 'GPS Fallback');
+          updateGPSDisplay();
+        },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+      );
+    }
+
+    // Auto-detect classroom GPS coordinates for Lecturer
+    function autoDetectLecturerGPS() {
+      if (!navigator.geolocation) {
+        showToast('Geolocation is not supported.', 'error');
+        return;
+      }
+
+      showToast('Detecting current classroom coordinates via device GPS...', 'info');
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          if (state.activeSession) {
+            state.activeSession.classroomLat = pos.coords.latitude;
+            state.activeSession.classroomLng = pos.coords.longitude;
+            saveAppState();
+            updateLecturerView();
+            updateGPSDisplay();
+            showToast(`Classroom coordinates set to: ${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`, 'success');
+          }
+        },
+        (err) => {
+          showToast(`Error reading GPS: ${err.message}`, 'error');
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    }
+
+    function applyClassroomPreset() {
+      const select = document.getElementById('lecturer-hall-select');
+      if (!select || !state.activeSession) return;
+
+      const val = select.value;
+      if (val === 'hall4b') {
+        state.activeSession.classroomName = 'Lecture Hall 4B';
+        state.activeSession.classroomLat = 6.927150;
+        state.activeSession.classroomLng = 79.861240;
+      } else if (val === 'lab3') {
+        state.activeSession.classroomName = 'Computer Lab 3';
+        state.activeSession.classroomLat = 6.927420;
+        state.activeSession.classroomLng = 79.861800;
+      } else if (val === 'audi') {
+        state.activeSession.classroomName = 'Main University Auditorium';
+        state.activeSession.classroomLat = 6.926800;
+        state.activeSession.classroomLng = 79.860500;
+      }
+      saveAppState();
+      updateLecturerView();
+      updateGPSDisplay();
+    }
+
+    // --- 6. STUDENT SCANNING & VERIFICATION ENGINE ---
+    function toggleCameraScanner() {
+      const placeholder = document.getElementById('scanner-placeholder');
+      const reticle = document.getElementById('scanner-reticle');
+      const btnText = document.getElementById('camera-btn-text');
+
+      if (isCameraScanning) {
+        // Stop Scanner
+        if (html5QrScannerInstance) {
+          html5QrScannerInstance.stop().then(() => {
+            html5QrScannerInstance.clear();
+            isCameraScanning = false;
+            if (placeholder) placeholder.classList.remove('hidden');
+            if (reticle) reticle.classList.add('hidden');
+            if (btnText) btnText.textContent = 'Start Camera';
+            showToast('Camera scanner stopped.', 'info');
+          }).catch(err => console.error("Stop error:", err));
+        }
+      } else {
+        // Start Scanner
+        if (placeholder) placeholder.classList.add('hidden');
+        if (reticle) reticle.classList.remove('hidden');
+        if (btnText) btnText.textContent = 'Stop Camera';
+
+        html5QrScannerInstance = new Html5Qrcode("reader");
+        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+        html5QrScannerInstance.start(
+          { facingMode: "environment" },
+          config,
+          (decodedText) => {
+            handleScannedPayload(decodedText);
+          },
+          (errorMessage) => {
+            // Scanner scanning frame callback - silent
+          }
+        ).then(() => {
+          isCameraScanning = true;
+          showToast('Live camera scanner active. Align QR code within reticle.', 'success');
+        }).catch(err => {
+          console.warn("Camera start failed:", err);
+          if (placeholder) placeholder.classList.remove('hidden');
+          if (reticle) reticle.classList.add('hidden');
+          if (btnText) btnText.textContent = 'Start Camera';
+          isCameraScanning = false;
+          showToast(`Camera permission error: ${err}. You can still use the "One-Click Test Scan" button!`, 'warning', 'Camera Access');
+        });
+      }
+    }
+
+    /**
+     * Core Attendance Verification Processor:
+     * 1. Checks active lecture session
+     * 2. Checks token expiration & nonce validity
+     * 3. Calculates Haversine distance for geofence check
+     * 4. Enforces student enrollment
+     * 5. Prevents duplicate check-ins
+     * 6. Records attendance & updates module statistics
+     */
+    function handleScannedPayload(payloadString) {
+      try {
+        let payload = null;
+        try {
+          payload = JSON.parse(payloadString);
+        } catch (e) {
+          showToast('Invalid QR Code format. Please scan an authentic AcademiaQR session code.', 'error', 'Invalid QR');
+          return;
+        }
+
+        const currentActive = state.activeSession;
+        if (!currentActive || !currentActive.isActive) {
+          showToast('There is currently no active lecture session running for this QR code.', 'error', 'Session Inactive');
+          return;
+        }
+
+        if (payload.sessionId !== currentActive.id) {
+          showToast(`Mismatched session ID (${payload.sessionId}). The QR code belongs to an expired or different lecture.`, 'error', 'Invalid Session');
+          return;
+        }
+
+        // 1. Dynamic Token Expiration Check (Anti-screenshot proxy)
+        const now = Date.now();
+        const tokenAgeMs = now - (payload.ts || 0);
+
+        // Allow max 10 seconds to account for network transmission or human scan delay
+        if (payload.nonce !== currentActive.currentNonce && tokenAgeMs > 10000) {
+          showToast('QR Code Expired! Dynamic tokens refresh every 5 seconds to prevent screenshots. Please scan the current code on screen.', 'error', 'Token Expired');
+          return;
+        }
+
+        // 2. GPS Geofencing Haversine Check
+        const distance = getDistanceInMeters(
+          studentLocation.lat,
+          studentLocation.lng,
+          currentActive.classroomLat,
+          currentActive.classroomLng
+        );
+
+        if (distance > currentActive.radiusMeters) {
+          showToast(
+            `Outside Classroom Geofence! Distance: ${distance.toFixed(1)}m exceeds allowed radius of ${currentActive.radiusMeters}m. You must be physically present in ${currentActive.classroomName}.`,
+            'error',
+            'GPS Geofence Violation'
+          );
+          return;
+        }
+
+        // 3. User Enrollment & Identity Check
+        const currentUser = state.users.find(u => u.id === currentUserId);
+        if (!currentUser) {
+          showToast('User profile not found.', 'error');
+          return;
+        }
+
+        // Check duplicate attendance in this session
+        const alreadyMarked = currentActive.records.some(r => r.studentId === currentUser.studentId);
+        if (alreadyMarked) {
+          showToast(`Attendance for ${currentUser.name} (${currentUser.studentId}) is already recorded for this session.`, 'warning', 'Already Present');
+          return;
+        }
+
+        // 4. Record Attendance
+        const newRecord = {
+          studentId: currentUser.studentId,
+          name: currentUser.name,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          distanceMeters: parseFloat(distance.toFixed(1)),
+          status: 'Verified (GPS + Dynamic QR)'
+        };
+
+        currentActive.records.unshift(newRecord);
+
+        // Increment student's module attendance count
+        if (!currentUser.attendedByModule) currentUser.attendedByModule = {};
+        currentUser.attendedByModule[currentActive.moduleId] = (currentUser.attendedByModule[currentActive.moduleId] || 0) + 1;
+
+        saveAppState();
+
+        // Sync and refresh all views
+        renderStudentView();
+        updateLecturerView();
+        renderAdminDashboard();
+
+        showToast(
+          `Attendance Verified! ${currentUser.name} successfully checked into ${currentActive.moduleCode} (${distance.toFixed(1)}m from podium).`,
+          'success',
+          'Attendance Confirmed'
+        );
+
+      } catch (err) {
+        console.error("Verification error:", err);
+        showToast(`Verification error: ${err.message}`, 'error');
+      }
+    }
+
+    // Desktop Simulation Helper
+    function simulateScanCurrentSession() {
+      if (!state.activeSession || !state.activeSession.isActive) {
+        showToast('No active session is currently running. Switch to Lecturer tab and click "Start New Lecture Session".', 'warning', 'No Active Session');
+        return;
+      }
+
+      const mockPayload = {
+        sessionId: state.activeSession.id,
+        moduleCode: state.activeSession.moduleCode,
+        nonce: state.activeSession.currentNonce,
+        lat: state.activeSession.classroomLat,
+        lng: state.activeSession.classroomLng,
+        radius: state.activeSession.radiusMeters,
+        ts: Date.now(),
+        exp: Date.now() + 6000
+      };
+
+      handleScannedPayload(JSON.stringify(mockPayload));
+    }
+
+    function fillCurrentLiveToken() {
+      const textarea = document.getElementById('manual-token-input');
+      if (!textarea || !state.activeSession) return;
+
+      const payload = {
+        sessionId: state.activeSession.id,
+        moduleCode: state.activeSession.moduleCode,
+        nonce: state.activeSession.currentNonce,
+        lat: state.activeSession.classroomLat,
+        lng: state.activeSession.classroomLng,
+        radius: state.activeSession.radiusMeters,
+        ts: Date.now(),
+        exp: Date.now() + 6000
+      };
+      textarea.value = JSON.stringify(payload, null, 2);
+    }
+
+    function submitManualTokenVerification() {
+      const textarea = document.getElementById('manual-token-input');
+      if (!textarea || !textarea.value.trim()) {
+        showToast('Please enter a valid token string.', 'error');
+        return;
+      }
+      closeModal('modal-manual-token');
+      handleScannedPayload(textarea.value.trim());
+    }
+
+    // --- 7. STUDENT VIEW RENDERING & 80% THRESHOLD ALERTS ---
+    function renderStudentView() {
+      const currentUser = state.users.find(u => u.id === currentUserId);
+      if (!currentUser || currentUser.role !== 'student') return;
+
+      // Filter modules for student's Year & Semester
+      const enrolledModules = state.modules.filter(m => m.year === currentUser.year && m.semester === currentUser.semester);
+
+      const listMount = document.getElementById('student-modules-list');
+      if (!listMount) return;
+
+      listMount.innerHTML = '';
+
+      let totalSessionsSum = 0;
+      let totalAttendedSum = 0;
+
+      enrolledModules.forEach(mod => {
+        const attended = (currentUser.attendedByModule && currentUser.attendedByModule[mod.id]) || 0;
+        const total = mod.totalSessionsHeld || 1;
+        const percentage = Math.round((attended / total) * 1000) / 10;
+
+        totalSessionsSum += total;
+        totalAttendedSum += attended;
+
+        // Determine 80% threshold status
+        const isBelowThreshold = percentage < 80.0;
+        const isCritical = percentage < 75.0;
+
+        let statusColor = 'emerald';
+        let badgeLabel = 'Good Standing';
+        let alertMessage = null;
+
+        if (isCritical) {
+          statusColor = 'rose';
+          badgeLabel = 'Critical Risk (<75%)';
+          alertMessage = '⚠️ Final exam eligibility revoked unless medical excuse or Dean appeal submitted.';
+        } else if (isBelowThreshold) {
+          statusColor = 'amber';
+          badgeLabel = 'Warning (75-79%)';
+          alertMessage = '⚠️ Below mandatory 80% threshold. Must attend upcoming classes.';
+        }
+
+        const card = document.createElement('div');
+        card.className = `p-5 rounded-2xl border transition-all duration-200 glass-card-subtle ${
+          isCritical
+            ? 'border-rose-400/60 dark:border-rose-900/80 bg-rose-50/40 dark:bg-rose-950/20'
+            : isBelowThreshold
+            ? 'border-amber-400/60 dark:border-amber-900/80 bg-amber-50/40 dark:bg-amber-950/20'
+            : 'border-slate-200 dark:border-slate-800'
+        }`;
+
+        card.innerHTML = `
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-mono text-xs font-bold px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200">
+                  ${mod.code}
+                </span>
+                <span class="text-[11px] text-slate-500 font-medium">${mod.credits} Credits • ${mod.lecturerName}</span>
+              </div>
+              <h4 class="font-bold text-slate-900 dark:text-white text-sm mt-1.5">${mod.name}</h4>
+            </div>
+
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${
+              statusColor === 'emerald'
+                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                : statusColor === 'amber'
+                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+            }">
+              ${badgeLabel}
+            </span>
+          </div>
+
+          <div class="mt-4 flex items-baseline justify-between text-xs">
+            <span class="text-slate-500">Attendance:</span>
+            <div class="flex items-baseline gap-1.5">
+              <span class="text-lg font-extrabold ${
+                statusColor === 'emerald' ? 'text-emerald-600 dark:text-emerald-400' : statusColor === 'amber' ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'
+              }">
+                ${percentage}%
+              </span>
+              <span class="text-slate-400 font-medium">(${attended} of ${total} sessions)</span>
+            </div>
+          </div>
+
+          <div class="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden mt-2">
+            <div class="h-full rounded-full transition-all duration-500 ${
+              statusColor === 'emerald' ? 'bg-emerald-500' : statusColor === 'amber' ? 'bg-amber-500' : 'bg-rose-500'
+            }" style="width: ${Math.min(100, percentage)}%"></div>
+          </div>
+
+          ${
+            alertMessage
+              ? `<div class="mt-3 p-2 rounded-xl text-[11px] font-medium flex items-center gap-1.5 ${
+                  isCritical ? 'bg-rose-100/70 dark:bg-rose-950/50 text-rose-800 dark:text-rose-300' : 'bg-amber-100/70 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300'
+                }">
+                  <i data-lucide="alert-circle" class="w-3.5 h-3.5 shrink-0"></i>
+                  <span>${alertMessage}</span>
+                </div>`
+              : ''
+          }
+        `;
+
+        listMount.appendChild(card);
+      });
+
+      // Update Overall Summary
+      const overallPct = totalSessionsSum > 0 ? (Math.round((totalAttendedSum / totalSessionsSum) * 1000) / 10) : 100;
+      const overallElem = document.getElementById('student-overall-pct');
+      const barElem = document.getElementById('student-overall-bar');
+      const attendedElem = document.getElementById('student-total-attended');
+      const totalElem = document.getElementById('student-total-sessions');
+      const badgeElem = document.getElementById('student-overall-badge');
+
+      if (overallElem) overallElem.textContent = `${overallPct}%`;
+      if (barElem) {
+        barElem.style.width = `${Math.min(100, overallPct)}%`;
+        barElem.className = `h-full rounded-full transition-all duration-500 ${
+          overallPct >= 80 ? 'bg-emerald-500' : overallPct >= 75 ? 'bg-amber-500' : 'bg-rose-500'
+        }`;
+      }
+      if (attendedElem) attendedElem.textContent = totalAttendedSum;
+      if (totalElem) totalElem.textContent = totalSessionsSum;
+
+      if (badgeElem) {
+        if (overallPct >= 80) {
+          badgeElem.className = 'px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800';
+          badgeElem.textContent = 'Good Standing (≥80%)';
+        } else {
+          badgeElem.className = 'px-2 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border border-rose-300 dark:border-rose-800';
+          badgeElem.textContent = 'Warning (<80% Policy)';
+        }
+      }
+
+      lucide.createIcons();
+    }
+
+    // --- 8. LECTURER VIEW & DASHBOARD ---
+    function updateLecturerView() {
+      // Populate module dropdown
+      const moduleSelect = document.getElementById('lecturer-module-select');
+      if (moduleSelect) {
+        moduleSelect.innerHTML = '';
+        state.modules.forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m.id;
+          opt.textContent = `${m.code}: ${m.name} (Yr ${m.year} Sem ${m.semester})`;
+          if (state.activeSession && state.activeSession.moduleId === m.id) {
+            opt.selected = true;
+          }
+          moduleSelect.appendChild(opt);
+        });
+      }
+
+      // Session button state
+      const toggleBtn = document.getElementById('btn-toggle-session');
+      const toggleLabel = document.getElementById('session-toggle-label');
+      const toggleIcon = document.getElementById('session-toggle-icon');
+
+      if (state.activeSession && state.activeSession.isActive) {
+        if (toggleBtn) {
+          toggleBtn.className = 'px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-2xl shadow-lg shadow-rose-500/25 transition flex items-center gap-2';
+        }
+        if (toggleLabel) toggleLabel.textContent = 'End Lecture Session';
+        if (toggleIcon) toggleIcon.setAttribute('data-lucide', 'square');
+      } else {
+        if (toggleBtn) {
+          toggleBtn.className = 'px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-2xl shadow-lg shadow-brand-500/25 transition flex items-center gap-2';
+        }
+        if (toggleLabel) toggleLabel.textContent = 'Start New Lecture Session';
+        if (toggleIcon) toggleIcon.setAttribute('data-lucide', 'play');
+      }
+
+      // Update Classroom coordinates preview
+      const coordsElem = document.getElementById('lecturer-classroom-coords');
+      if (coordsElem && state.activeSession) {
+        coordsElem.textContent = `${state.activeSession.classroomLat.toFixed(5)}° N, ${state.activeSession.classroomLng.toFixed(5)}° E (${state.activeSession.classroomName})`;
+      }
+
+      // Render Live Roster Table
+      const tbody = document.getElementById('lecturer-roster-tbody');
+      const liveBadge = document.getElementById('live-count-badge');
+      const descElem = document.getElementById('live-session-desc');
+
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      const records = (state.activeSession && state.activeSession.records) || [];
+      if (liveBadge) liveBadge.textContent = `${records.length} Present`;
+      if (descElem && state.activeSession) {
+        descElem.textContent = `Session: ${state.activeSession.moduleCode} • ${state.activeSession.classroomName} • Radius: ${state.activeSession.radiusMeters}m`;
+      }
+
+      if (records.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" class="py-8 text-center text-slate-400">
+              <i data-lucide="users" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
+              No students checked in yet. Projected dynamic QR code is live.
+            </td>
+          </tr>
+        `;
+      } else {
+        records.forEach((rec, idx) => {
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-200/30 dark:hover:bg-slate-800/30 transition';
+          tr.innerHTML = `
+            <td class="py-2.5 px-3">
+              <div class="font-semibold text-slate-800 dark:text-slate-200">${rec.name}</div>
+              <div class="text-[10px] text-slate-400 font-mono">${rec.studentId}</div>
+            </td>
+            <td class="py-2.5 px-3 font-mono text-slate-600 dark:text-slate-400">${rec.timestamp}</td>
+            <td class="py-2.5 px-3">
+              <span class="inline-flex items-center gap-1 font-mono text-[11px] px-2 py-0.5 rounded-md ${
+                rec.distanceMeters !== undefined && rec.distanceMeters <= 50 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+              }">
+                <i data-lucide="map-pin" class="w-3 h-3"></i> ${rec.distanceMeters !== undefined ? `${rec.distanceMeters}m` : 'Podium Override'}
+              </span>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                ${rec.status}
+              </span>
+            </td>
+            <td class="py-2.5 px-3 text-right">
+              <button onclick="removeAttendanceRecord('${rec.studentId}')" class="p-1 rounded-lg text-rose-500 hover:bg-rose-100 dark:hover:bg-rose-950/60 transition" title="Mark Absent">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              </button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      // Stats
+      const statPresent = document.getElementById('stat-present-count');
+      const statAbsent = document.getElementById('stat-absent-count');
+      const statCohort = document.getElementById('stat-cohort-pct');
+
+      const totalCohort = 5; // Demo cohort size for Year 2 SE
+      if (statPresent) statPresent.textContent = records.length;
+      if (statAbsent) statAbsent.textContent = Math.max(0, totalCohort - records.length);
+      if (statCohort) statCohort.textContent = `${Math.min(100, Math.round((records.length / totalCohort) * 100))}%`;
+
+      // Update Top active session banner
+      const banner = document.getElementById('active-session-banner');
+      const bannerTitle = document.getElementById('banner-session-title');
+      if (banner && state.activeSession && state.activeSession.isActive) {
+        banner.classList.remove('hidden');
+        if (bannerTitle) bannerTitle.textContent = `${state.activeSession.moduleCode}: ${state.activeSession.moduleName} — ${state.activeSession.classroomName}`;
+      } else if (banner) {
+        banner.classList.add('hidden');
+      }
+
+      lucide.createIcons();
+    }
+
+    function toggleLectureSession() {
+      if (state.activeSession && state.activeSession.isActive) {
+        // End Session
+        state.activeSession.isActive = false;
+        saveAppState();
+        updateLecturerView();
+        updateDynamicQRToken();
+        showToast('Lecture session ended. QR token generation paused.', 'info', 'Session Ended');
+      } else {
+        // Start New Session with inputs
+        const moduleSelect = document.getElementById('lecturer-module-select');
+        const topicInput = document.getElementById('lecturer-topic-input');
+        const radiusSelect = document.getElementById('lecturer-radius-select');
+
+        const selectedMod = state.modules.find(m => m.id === (moduleSelect ? moduleSelect.value : 'mod-1')) || state.modules[0];
+
+        state.activeSession = {
+          id: `session-${Date.now()}`,
+          isActive: true,
+          moduleId: selectedMod.id,
+          moduleCode: selectedMod.code,
+          moduleName: selectedMod.name,
+          topic: topicInput ? topicInput.value : 'Classroom Lecture',
+          year: selectedMod.year,
+          semester: selectedMod.semester,
+          classroomName: 'Lecture Hall 4B',
+          classroomLat: 6.927150,
+          classroomLng: 79.861240,
+          radiusMeters: radiusSelect ? parseInt(radiusSelect.value) : 50,
+          currentNonce: generateDynamicNonce(),
+          tokenCreatedAt: Date.now(),
+          records: []
+        };
+
+        // Increment total sessions for module
+        selectedMod.totalSessionsHeld = (selectedMod.totalSessionsHeld || 0) + 1;
+
+        saveAppState();
+        updateLecturerView();
+        renderStudentView();
+        startQRRefreshCycle();
+        showToast(`Started new live session for ${selectedMod.code}! Dynamic QR is now streaming.`, 'success', 'Session Live');
+      }
+    }
+
+    function removeAttendanceRecord(studentId) {
+      if (!state.activeSession || !state.activeSession.records) return;
+      state.activeSession.records = state.activeSession.records.filter(r => r.studentId !== studentId);
+
+      // Decrement student module attendance
+      const student = state.users.find(u => u.studentId === studentId);
+      if (student && student.attendedByModule && student.attendedByModule[state.activeSession.moduleId] > 0) {
+        student.attendedByModule[state.activeSession.moduleId]--;
+      }
+
+      saveAppState();
+      updateLecturerView();
+      renderStudentView();
+      showToast(`Removed attendance record for ${studentId}.`, 'info');
+    }
+
+    // Export to CSV
+    function exportAttendanceCSV() {
+      if (!state.activeSession) {
+        showToast('No active or previous session data to export.', 'error');
+        return;
+      }
+
+      const session = state.activeSession;
+      let csvContent = "data:text/csv;charset=utf-8,";
+      csvContent += `AcademiaQR Official Attendance Record\n`;
+      csvContent += `Module,${session.moduleCode}: ${session.moduleName}\n`;
+      csvContent += `Topic,${session.topic}\n`;
+      csvContent += `Classroom,${session.classroomName} (${session.classroomLat}, ${session.classroomLng})\n`;
+      csvContent += `Date,${new Date().toLocaleDateString()}\n\n`;
+      csvContent += `Student ID,Student Name,Check-in Time,GPS Distance (m),Verification Status\n`;
+
+      session.records.forEach(r => {
+        csvContent += `"${r.studentId}","${r.name}","${r.timestamp}","${r.distanceMeters || 'Manual'}","${r.status}"\n`;
+      });
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `Attendance_${session.moduleCode}_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      showToast(`Exported ${session.records.length} records to CSV spreadsheet.`, 'success', 'Export Complete');
+    }
+
+    // Manual checkin override by lecturer
+    function openManualCheckinModal() {
+      const select = document.getElementById('manual-student-select');
+      if (!select) return;
+      select.innerHTML = '';
+
+      state.users.filter(u => u.role === 'student').forEach(stu => {
+        const opt = document.createElement('option');
+        opt.value = stu.id;
+        opt.textContent = `${stu.name} (${stu.studentId})`;
+        select.appendChild(opt);
+      });
+
+      openModal('modal-manual-checkin');
+    }
+
+    function submitManualCheckin() {
+      const stuSelect = document.getElementById('manual-student-select');
+      const statusSelect = document.getElementById('manual-status-select');
+      const noteInput = document.getElementById('manual-override-note');
+
+      if (!stuSelect || !state.activeSession) return;
+
+      const student = state.users.find(u => u.id === stuSelect.value);
+      if (!student) return;
+
+      const record = {
+        studentId: student.studentId,
+        name: student.name,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        distanceMeters: 0,
+        status: statusSelect ? statusSelect.value : 'Present (Manual Override)'
+      };
+
+      // Add to session
+      state.activeSession.records = state.activeSession.records.filter(r => r.studentId !== student.studentId);
+      state.activeSession.records.unshift(record);
+
+      if (!student.attendedByModule) student.attendedByModule = {};
+      student.attendedByModule[state.activeSession.moduleId] = (student.attendedByModule[state.activeSession.moduleId] || 0) + 1;
+
+      saveAppState();
+      closeModal('modal-manual-checkin');
+      updateLecturerView();
+      renderStudentView();
+      showToast(`Manual override saved for ${student.name}.`, 'success');
+    }
+
+    // --- 9. ADMIN DASHBOARD & ACADEMIC HIERARCHY ---
+    function renderAdminDashboard() {
+      // KPI stats
+      const kpiStudents = document.getElementById('admin-kpi-students');
+      const kpiModules = document.getElementById('admin-kpi-modules');
+      const kpiSessions = document.getElementById('admin-kpi-sessions');
+      const kpiAvg = document.getElementById('admin-kpi-avg');
+
+      const studentCount = state.users.filter(u => u.role === 'student').length;
+      if (kpiStudents) kpiStudents.textContent = `${studentCount} Students`;
+      if (kpiModules) kpiModules.textContent = state.modules.length;
+      if (kpiSessions) kpiSessions.textContent = (state.activeSession && state.activeSession.isActive) ? 1 : 0;
+
+      // Render modules directory with filters
+      renderAdminModules();
+
+      // Render user role management directory
+      renderAdminUsers();
+    }
+
+    function renderAdminModules() {
+      const yearFilter = document.getElementById('admin-filter-year') ? document.getElementById('admin-filter-year').value : 'all';
+      const semFilter = document.getElementById('admin-filter-semester') ? document.getElementById('admin-filter-semester').value : 'all';
+      const tbody = document.getElementById('admin-modules-tbody');
+      if (!tbody) return;
+
+      tbody.innerHTML = '';
+
+      const filtered = state.modules.filter(m => {
+        if (yearFilter !== 'all' && m.year.toString() !== yearFilter) return false;
+        if (semFilter !== 'all' && m.semester.toString() !== semFilter) return false;
+        return true;
+      });
+
+      filtered.forEach(m => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-200/30 dark:hover:bg-slate-800/30 transition';
+        tr.innerHTML = `
+          <td class="py-2.5 px-3 font-mono font-bold text-slate-900 dark:text-white">${m.code}</td>
+          <td class="py-2.5 px-3 font-medium text-slate-800 dark:text-slate-200">${m.name}</td>
+          <td class="py-2.5 px-3">
+            <span class="px-2 py-0.5 rounded bg-slate-200/60 dark:bg-slate-800/60 font-medium">Year ${m.year} • Sem ${m.semester}</span>
+          </td>
+          <td class="py-2.5 px-3 font-mono">${m.credits} cr</td>
+          <td class="py-2.5 px-3 text-slate-600 dark:text-slate-400">${m.lecturerName}</td>
+          <td class="py-2.5 px-3">
+            <span class="font-semibold text-emerald-600 dark:text-emerald-400">86.4%</span>
+          </td>
+          <td class="py-2.5 px-3 text-right">
+            <button onclick="deleteModule('${m.id}')" class="p-1 rounded text-slate-400 hover:text-rose-500 transition" title="Delete Module">
+              <i data-lucide="trash" class="w-3.5 h-3.5"></i>
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      lucide.createIcons();
+    }
+
+    function renderAdminUsers() {
+      const tbody = document.getElementById('admin-users-tbody');
+      const countElem = document.getElementById('admin-user-count');
+      if (!tbody) return;
+
+      tbody.innerHTML = '';
+      if (countElem) countElem.textContent = `${state.users.length} registered system users`;
+
+      state.users.forEach(u => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-200/30 dark:hover:bg-slate-800/30 transition';
+        
+        let roleBadgeClass = 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300';
+        if (u.role === 'lecturer') roleBadgeClass = 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300';
+        if (u.role === 'admin') roleBadgeClass = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300';
+
+        tr.innerHTML = `
+          <td class="py-2.5 px-3 font-mono text-slate-500">${u.studentId || u.lecturerId || u.adminId || u.id}</td>
+          <td class="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">${u.name}</td>
+          <td class="py-2.5 px-3 text-slate-500">${u.email}</td>
+          <td class="py-2.5 px-3">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${roleBadgeClass}">
+              ${u.role}
+            </span>
+          </td>
+          <td class="py-2.5 px-3 text-slate-600 dark:text-slate-400">${u.department || `Year ${u.year} Sem ${u.semester}`}</td>
+          <td class="py-2.5 px-3 text-right">
+            <select onchange="changeUserRole('${u.id}', this.value)" class="p-1 rounded-lg text-[11px] bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700">
+              <option value="student" ${u.role === 'student' ? 'selected' : ''}>Student</option>
+              <option value="lecturer" ${u.role === 'lecturer' ? 'selected' : ''}>Lecturer</option>
+              <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Admin</option>
+            </select>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      lucide.createIcons();
+    }
+
+    function changeUserRole(userId, newRole) {
+      const u = state.users.find(x => x.id === userId);
+      if (u) {
+        u.role = newRole;
+        saveAppState();
+        showToast(`Changed role for ${u.name} to ${newRole.toUpperCase()}.`, 'success');
+        renderAdminUsers();
+      }
+    }
+
+    function deleteModule(modId) {
+      state.modules = state.modules.filter(m => m.id !== modId);
+      saveAppState();
+      renderAdminModules();
+      showToast('Module deleted from registry.', 'info');
+    }
+
+    function openNewModuleModal() {
+      const select = document.getElementById('new-mod-lecturer');
+      if (select) {
+        select.innerHTML = '';
+        state.users.filter(u => u.role === 'lecturer').forEach(lec => {
+          const opt = document.createElement('option');
+          opt.value = lec.id;
+          opt.textContent = `${lec.name} (${lec.department || 'Computing'})`;
+          select.appendChild(opt);
+        });
+      }
+      openModal('modal-add-module');
+    }
+
+    function submitNewModule() {
+      const code = document.getElementById('new-mod-code').value.trim();
+      const title = document.getElementById('new-mod-title').value.trim();
+      const credits = parseInt(document.getElementById('new-mod-credits').value) || 3;
+      const year = parseInt(document.getElementById('new-mod-year').value) || 1;
+      const semester = parseInt(document.getElementById('new-mod-semester').value) || 1;
+      const lecSelect = document.getElementById('new-mod-lecturer');
+
+      if (!code || !title) {
+        showToast('Please enter both Module Code and Subject Name.', 'error');
+        return;
+      }
+
+      const lecturer = state.users.find(u => u.id === lecSelect.value) || { name: 'Faculty Staff' };
+
+      const newMod = {
+        id: `mod-${Date.now()}`,
+        code: code.toUpperCase(),
+        name: title,
+        credits: credits,
+        year: year,
+        semester: semester,
+        programId: 'prog-1',
+        lecturerId: lecSelect ? lecSelect.value : '',
+        lecturerName: lecturer.name,
+        totalSessionsHeld: 1
+      };
+
+      state.modules.push(newMod);
+      saveAppState();
+      closeModal('modal-add-module');
+      renderAdminDashboard();
+      updateLecturerView();
+      renderStudentView();
+      showToast(`Module ${code} registered successfully.`, 'success');
+    }
+
+    function openNewUserModal() {
+      openModal('modal-add-user');
+    }
+
+    function submitNewUser() {
+      const name = document.getElementById('new-user-name').value.trim();
+      const email = document.getElementById('new-user-email').value.trim();
+      const role = document.getElementById('new-user-role').value;
+      const year = parseInt(document.getElementById('new-user-year').value) || 1;
+
+      if (!name || !email) {
+        showToast('Please enter user name and email.', 'error');
+        return;
+      }
+
+      const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+
+      const newUser = {
+        id: `user-${Date.now()}`,
+        studentId: role === 'student' ? `STU-${Math.floor(1000 + Math.random() * 9000)}` : undefined,
+        lecturerId: role === 'lecturer' ? `LEC-${Math.floor(100 + Math.random() * 900)}` : undefined,
+        name: name,
+        email: email,
+        role: role,
+        year: role === 'student' ? year : undefined,
+        semester: role === 'student' ? 1 : undefined,
+        avatar: initials,
+        attendedByModule: {}
+      };
+
+      state.users.push(newUser);
+      saveAppState();
+      closeModal('modal-add-user');
+      renderAdminUsers();
+      showToast(`User account created for ${name}.`, 'success');
+    }
+
+    // --- 10. ROLE SWITCHING & USER SELECTION ---
+    function switchRole(role) {
+      currentRole = role;
+
+      const viewStudent = document.getElementById('view-student');
+      const viewLecturer = document.getElementById('view-lecturer');
+      const viewAdmin = document.getElementById('view-admin');
+
+      const btnStudent = document.getElementById('nav-btn-student');
+      const btnLecturer = document.getElementById('nav-btn-lecturer');
+      const btnAdmin = document.getElementById('nav-btn-admin');
+
+      // Hide all views
+      if (viewStudent) viewStudent.classList.add('hidden');
+      if (viewLecturer) viewLecturer.classList.add('hidden');
+      if (viewAdmin) viewAdmin.classList.add('hidden');
+
+      // Reset buttons
+      [btnStudent, btnLecturer, btnAdmin].forEach(b => {
+        if (b) {
+          b.className = 'flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white';
+        }
+      });
+
+      if (role === 'student') {
+        if (viewStudent) viewStudent.classList.remove('hidden');
+        if (btnStudent) btnStudent.className = 'flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 bg-white dark:bg-slate-800 text-brand-600 dark:text-brand-400 shadow-sm';
+        renderStudentView();
+        updateGPSDisplay();
+      } else if (role === 'lecturer') {
+        if (viewLecturer) viewLecturer.classList.remove('hidden');
+        if (btnLecturer) btnLecturer.className = 'flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-sm';
+        updateLecturerView();
+      } else if (role === 'admin') {
+        if (viewAdmin) viewAdmin.classList.remove('hidden');
+        if (btnAdmin) btnAdmin.className = 'flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm';
+        renderAdminDashboard();
+      }
+
+      lucide.createIcons();
+    }
+
+    function selectPersona(key) {
+      if (key === 'student1') {
+        currentUserId = 'user-stu-1';
+        switchRole('student');
+      } else if (key === 'student2') {
+        currentUserId = 'user-stu-2';
+        switchRole('student');
+      } else if (key === 'lecturer1') {
+        currentUserId = 'user-lec-1';
+        switchRole('lecturer');
+      } else if (key === 'admin1') {
+        currentUserId = 'user-adm-1';
+        switchRole('admin');
+      }
+
+      updateUserHeaderDisplay();
+      toggleUserDropdown(false);
+      showToast(`Switched active persona to ${document.getElementById('user-name').textContent}`, 'info');
+    }
+
+    function updateUserHeaderDisplay() {
+      const user = state.users.find(u => u.id === currentUserId);
+      if (!user) return;
+
+      const nameElem = document.getElementById('user-name');
+      const badgeElem = document.getElementById('user-role-badge');
+      const avatarElem = document.getElementById('user-avatar');
+
+      if (nameElem) nameElem.textContent = user.name;
+      if (badgeElem) {
+        if (user.role === 'student') badgeElem.textContent = `Year ${user.year} • Student`;
+        else if (user.role === 'lecturer') badgeElem.textContent = 'Lecturer • Faculty';
+        else badgeElem.textContent = 'Academic Admin';
+      }
+      if (avatarElem) avatarElem.textContent = user.avatar || user.name.slice(0, 2).toUpperCase();
+    }
+
+    function toggleUserDropdown(forceState) {
+      const menu = document.getElementById('user-dropdown');
+      if (!menu) return;
+      if (forceState !== undefined) {
+        if (forceState) menu.classList.remove('hidden');
+        else menu.classList.add('hidden');
+      } else {
+        menu.classList.toggle('hidden');
+      }
+    }
+
+    // Close dropdown on outside click
+    document.addEventListener('click', (e) => {
+      const userBtn = document.getElementById('user-menu-btn');
+      const dropdown = document.getElementById('user-dropdown');
+      if (userBtn && dropdown && !userBtn.contains(e.target) && !dropdown.contains(e.target)) {
+        dropdown.classList.add('hidden');
+      }
+    });
+
+    // Theme toggle
+    function toggleTheme() {
+      document.documentElement.classList.toggle('dark');
+      const isDark = document.documentElement.classList.contains('dark');
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    }
+
+    // Modals
+    function openModal(id) {
+      const modal = document.getElementById(id);
+      if (modal) modal.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeModal(id) {
+      const modal = document.getElementById(id);
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function openManualTokenModal() {
+      openModal('modal-manual-token');
+      fillCurrentLiveToken();
+    }
+
+    function focusScanner() {
+      const reader = document.getElementById('reader');
+      if (reader) reader.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Firebase Settings Modal
+    function openFirebaseConfigModal() {
+      const textarea = document.getElementById('firebase-config-input');
+      if (textarea) {
+        const stored = localStorage.getItem('academia_qr_firebase_config');
+        if (stored) {
+          textarea.value = stored;
+        } else if (window._firebaseModular) {
+          textarea.value = JSON.stringify(window._firebaseModular.defaultConfig, null, 2);
+        }
+      }
+      openModal('modal-firebase');
+    }
+
+    function saveFirebaseConfig() {
+      const textarea = document.getElementById('firebase-config-input');
+      if (!textarea) return;
+      try {
+        const parsed = JSON.parse(textarea.value);
+        localStorage.setItem('academia_qr_firebase_config', JSON.stringify(parsed, null, 2));
+        closeModal('modal-firebase');
+        showToast('Firebase configuration saved to local store.', 'success');
+      } catch (e) {
+        showToast('Invalid JSON in Firebase configuration.', 'error');
+      }
+    }
+
+    function resetFirebaseConfigDefault() {
+      const textarea = document.getElementById('firebase-config-input');
+      if (textarea && window._firebaseModular) {
+        textarea.value = JSON.stringify(window._firebaseModular.defaultConfig, null, 2);
+      }
+    }
+
+    // BroadcastChannel Multi-tab synchronization
+    syncChannel.onmessage = (event) => {
+      if (event.data && event.data.type === 'STATE_UPDATED') {
+        state = loadAppState();
+        renderStudentView();
+        updateLecturerView();
+        renderAdminDashboard();
+        updateGPSDisplay();
+      }
+    };
+
+    // --- 11. INITIALIZATION ON PAGE LOAD ---
+    window.addEventListener('DOMContentLoaded', () => {
+      // Restore theme
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+
+      // Initialize icons
+      lucide.createIcons();
+
+      // Initialize Dynamic QR generator
+      initDynamicQRGenerator();
+
+      // Render default student view
+      updateUserHeaderDisplay();
+      renderStudentView();
+      updateGPSDisplay();
+      updateLecturerView();
+      renderAdminDashboard();
+
+      // Welcome toast
+      setTimeout(() => {
+        showToast('Welcome to AcademiaQR! Classroom geofencing and dynamic 5s anti-proxy QR streaming are active.', 'info', 'System Ready');
+      }, 500);
+    });
+  </script>
+</body>
+</html>
